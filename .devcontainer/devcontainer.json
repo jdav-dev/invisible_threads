@@ -1,0 +1,50 @@
+{
+  "name": "InvisibleThreads",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "target": "devcontainer"
+  },
+  "mounts": [
+    "type=bind,source=.,target=/workspace,consistency=cached",
+    "type=volume,source=shell_histories,target=/home/vscode/.cache/erlang-history",
+    "type=volume,source=vscode_extensions,target=/home/vscode/.vscode-server-insiders"
+  ],
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [4000],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.rulers": [98],
+        "git.blame.editorDecoration.enabled": true,
+        "git.inputValidation": true,
+        "remote.autoForwardPorts": false,
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.scrollback": 100000,
+        "[css]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[html]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[jsonc]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      },
+      "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "davidanson.vscode-markdownlint",
+        "esbenp.prettier-vscode",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "jakebecker.elixir-ls",
+        "ms-azuretools.vscode-containers",
+        "phoenixframework.phoenix",
+        "tamasfe.even-better-toml",
+        "timonwong.shellcheck"
+      ]
+    }
+  }
+}

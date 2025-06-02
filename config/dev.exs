@@ -1,12 +1,5 @@
 import Config
 
-# Configure your database
-config :invisible_threads, InvisibleThreads.Repo,
-  database: Path.expand("../invisible_threads_dev.db", __DIR__),
-  pool_size: 5,
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true
-
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

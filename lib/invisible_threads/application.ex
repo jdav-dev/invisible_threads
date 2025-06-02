@@ -9,7 +9,6 @@ defmodule InvisibleThreads.Application do
   def start(_type, _args) do
     children = [
       InvisibleThreadsWeb.Telemetry,
-      InvisibleThreads.Repo,
       {Ecto.Migrator,
        repos: Application.fetch_env!(:invisible_threads, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:invisible_threads, :dns_cluster_query) || :ignore},

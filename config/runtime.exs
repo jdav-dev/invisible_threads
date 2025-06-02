@@ -21,16 +21,14 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
-  database_path =
-    System.get_env("DATABASE_PATH") ||
+  database_dir =
+    System.get_env("DATABASE_DIR") ||
       raise """
-      environment variable DATABASE_PATH is missing.
+      environment variable DATABASE_DIR is missing.
       For example: /etc/invisible_threads/invisible_threads.db
       """
 
-  config :invisible_threads, InvisibleThreads.Repo,
-    database: database_path,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
+  config :invisible_threads, InvisibleThreads.Repo, database_dir: database_dir
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you

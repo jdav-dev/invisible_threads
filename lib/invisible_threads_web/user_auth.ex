@@ -6,6 +6,7 @@ defmodule InvisibleThreadsWeb.UserAuth do
 
   alias InvisibleThreads.Accounts
   alias InvisibleThreads.Accounts.Scope
+  alias InvisibleThreads.Accounts.User
 
   # Make the remember me cookie valid for 14 days. This should match
   # the session validity setting in UserToken.
@@ -46,8 +47,10 @@ defmodule InvisibleThreadsWeb.UserAuth do
   It clears all session data for safety. See renew_session.
   """
   def log_out_user(conn) do
+    current_scope = conn.assigns[:current_scope]
+    user = current_scope && current_scope.user
     user_token = get_session(conn, :user_token)
-    user_token && Accounts.delete_user_session_token(user_token)
+    user && user_token && Accounts.delete_user_session_token(user, user_token)
 
     if live_socket_id = get_session(conn, :live_socket_id) do
       InvisibleThreadsWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
@@ -65,8 +68,9 @@ defmodule InvisibleThreadsWeb.UserAuth do
   Will reissue the session token if it is older than the configured age.
   """
   def fetch_current_scope_for_user(conn, _opts) do
-    with {token, conn} <- ensure_user_token(conn),
-         {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
+    with %User{} = user <- get_session(conn, :user),
+         {token, conn} <- ensure_user_token(conn),
+         %DateTime{} = token_inserted_at <- Accounts.verify_session_token(user, token) do
       conn
       |> assign(:current_scope, Scope.for_user(user))
       |> maybe_reissue_user_session_token(user, token_inserted_at)
@@ -114,6 +118,7 @@ defmodule InvisibleThreadsWeb.UserAuth do
 
     conn
     |> renew_session(user)
+    |> put_session(:user, user)
     |> put_token_in_session(token)
     |> maybe_write_remember_me_cookie(token, params, remember_me)
   end
@@ -230,39 +235,21 @@ defmodule InvisibleThreadsWeb.UserAuth do
     end
   end
 
-  def on_mount(:require_sudo_mode, _params, session, socket) do
-    socket = mount_current_scope(socket, session)
-
-    if Accounts.sudo_mode?(socket.assigns.current_scope.user, -10) do
-      {:cont, socket}
-    else
-      socket =
-        socket
-        |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
-
-      {:halt, socket}
-    end
-  end
-
   defp mount_current_scope(socket, session) do
     Phoenix.Component.assign_new(socket, :current_scope, fn ->
-      {user, _} =
-        if user_token = session["user_token"] do
-          Accounts.get_user_by_session_token(user_token)
-        end || {nil, nil}
+      user =
+        with %User{} = user <- session["user"],
+             user_token when is_binary(user_token) <- session["user_token"],
+             %DateTime{} <- Accounts.verify_session_token(user, user_token) do
+          user
+        end
 
       Scope.for_user(user)
     end)
   end
 
   @doc "Returns the path to redirect to after log in."
-  # the user was already logged in, redirect to settings
-  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
-    ~p"/users/settings"
-  end
-
-  def signed_in_path(_), do: ~p"/"
+  def signed_in_path(_conn), do: ~p"/"
 
   @doc """
   Plug for routes that require the user to be authenticated.

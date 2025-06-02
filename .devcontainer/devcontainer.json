@@ -42,6 +42,7 @@
         "jakebecker.elixir-ls",
         "ms-azuretools.vscode-containers",
         "phoenixframework.phoenix",
+        "qwtel.sqlite-viewer",
         "tamasfe.even-better-toml",
         "timonwong.shellcheck"
       ]

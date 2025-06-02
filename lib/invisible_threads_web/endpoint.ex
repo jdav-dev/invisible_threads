@@ -8,6 +8,7 @@ defmodule InvisibleThreadsWeb.Endpoint do
     store: :cookie,
     key: "_invisible_threads_key",
     signing_salt: "ORu3QSUJ",
+    encryption_salt: "vibNw7vy",
     same_site: "Lax"
   ]
 

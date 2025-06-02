@@ -48,7 +48,7 @@ defmodule InvisibleThreadsWeb.UserAuth do
   """
   def log_out_user(conn) do
     current_scope = conn.assigns[:current_scope]
-    user = current_scope && current_scope.user
+    user = (current_scope && current_scope.user) || get_session(conn, :user)
     user_token = get_session(conn, :user_token)
     user && user_token && Accounts.delete_user_session_token(user, user_token)
 

@@ -11,16 +11,16 @@ defmodule InvisibleThreads.Postmark do
   def get_server(server_token) do
     server_token
     |> new_req()
-    |> Req.get!(url: "/server")
+    |> Req.get(url: "/server")
     |> case do
-      %Req.Response{status: 200, body: body} ->
+      {:ok, %Req.Response{status: 200, body: body}} ->
         {:ok, body}
 
-      %Req.Response{status: 401} ->
+      {:ok, %Req.Response{status: 401}} ->
         {:error, :invalid_token}
 
-      response ->
-        Logger.error(["Error calling Postmark:\n\tResponse: ", inspect(response)])
+      error ->
+        Logger.error(["Error calling Postmark:\n\tError: ", inspect(error)])
         :error
     end
   end

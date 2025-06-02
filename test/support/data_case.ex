@@ -5,13 +5,6 @@ defmodule InvisibleThreads.DataCase do
 
   You may define functions here to be used as helpers in
   your tests.
-
-  Finally, if the test case interacts with the database,
-  we enable the SQL sandbox, so changes done to the database
-  are reverted at the end of every test. If you are using
-  PostgreSQL, you can even run database tests asynchronously
-  by setting `use InvisibleThreads.DataCase, async: true`, although
-  this option is not recommended for other databases.
   """
 
   use ExUnit.CaseTemplate
@@ -36,8 +29,16 @@ defmodule InvisibleThreads.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(InvisibleThreads.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    database_dir = InvisibleThreads.Repo.database_dir()
+
+    on_exit(fn ->
+      if !tags[:async] do
+        database_dir
+        |> Path.join("user_*.db")
+        |> Path.wildcard()
+        |> Enum.each(&File.rm!/1)
+      end
+    end)
   end
 
   @doc """

@@ -1,6 +1,7 @@
 import Config
 
-config :invisible_threads, postmark_req_options: [plug: {Req.Test, InvisibleThreads.Postmark}]
+config :invisible_threads,
+  postmark_req_options: [plug: {Req.Test, InvisibleThreads.Postmark}, retry: false]
 
 # Configure your database
 #

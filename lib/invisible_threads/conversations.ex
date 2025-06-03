@@ -15,7 +15,6 @@ defmodule InvisibleThreads.Conversations do
   The broadcasted messages match the pattern:
 
     * {:created, %EmailThread{}}
-    * {:updated, %EmailThread{}}
     * {:deleted, %EmailThread{}}
 
   """
@@ -84,28 +83,6 @@ defmodule InvisibleThreads.Conversations do
            |> EmailThread.changeset(attrs, scope)
            |> then(&Repo.with_dynamic_repo(scope.user, fn -> Repo.insert(&1) end)) do
       broadcast(scope, {:created, email_thread})
-      {:ok, email_thread}
-    end
-  end
-
-  @doc """
-  Updates a email_thread.
-
-  ## Examples
-
-      iex> update_email_thread(email_thread, %{field: new_value})
-      {:ok, %EmailThread{}}
-
-      iex> update_email_thread(email_thread, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def update_email_thread(%Scope{} = scope, %EmailThread{} = email_thread, attrs) do
-    with {:ok, email_thread = %EmailThread{}} <-
-           email_thread
-           |> EmailThread.changeset(attrs, scope)
-           |> then(&Repo.with_dynamic_repo(scope.user, fn -> Repo.update(&1) end)) do
-      broadcast(scope, {:updated, email_thread})
       {:ok, email_thread}
     end
   end

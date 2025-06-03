@@ -27,10 +27,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     gnupg2 \
     inotify-tools \
+    openssh-client \
     sudo \
     watchman \
     zsh \
     && rm -rf /var/lib/apt/lists/*
+
+# Download public key for github.com
+RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
 
 ARG USERNAME=vscode
 ARG USER_UID=1000

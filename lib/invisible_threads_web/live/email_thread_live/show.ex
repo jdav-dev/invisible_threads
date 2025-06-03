@@ -14,18 +14,18 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
           <.button navigate={~p"/email_threads"}>
             <.icon name="hero-arrow-left" />
           </.button>
-          <.button
-            variant="primary"
-            navigate={~p"/email_threads/#{@email_thread}/edit?return_to=show"}
-          >
-            <.icon name="hero-pencil-square" /> Edit email_thread
-          </.button>
         </:actions>
       </.header>
 
       <.list>
         <:item title="Name">{@email_thread.name}</:item>
-        <:item title="Recipients">{@email_thread.recipients}</:item>
+        <:item title="Recipients">
+          <ul>
+            <li :for={recipient <- @email_thread.recipients}>
+              {recipient.name} &lt;{recipient.address}&gt;
+            </li>
+          </ul>
+        </:item>
       </.list>
     </Layouts.app>
     """
@@ -45,13 +45,6 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
 
   @impl Phoenix.LiveView
   def handle_info(
-        {:updated, %InvisibleThreads.Conversations.EmailThread{id: id} = email_thread},
-        %{assigns: %{email_thread: %{id: id}}} = socket
-      ) do
-    {:noreply, assign(socket, :email_thread, email_thread)}
-  end
-
-  def handle_info(
         {:deleted, %InvisibleThreads.Conversations.EmailThread{id: id}},
         %{assigns: %{email_thread: %{id: id}}} = socket
       ) do
@@ -62,7 +55,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
   end
 
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)
-      when type in [:created, :updated, :deleted] do
+      when type in [:created, :deleted] do
     {:noreply, socket}
   end
 end

@@ -8,10 +8,10 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
-        Listing Email threads
+        Listing threads
         <:actions>
           <.button variant="primary" navigate={~p"/email_threads/new"}>
-            <.icon name="hero-plus" /> New Email thread
+            <.icon name="hero-plus" /> New thread
           </.button>
         </:actions>
       </.header>
@@ -29,7 +29,6 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
           <div class="sr-only">
             <.link navigate={~p"/email_threads/#{email_thread}"}>Show</.link>
           </div>
-          <.link navigate={~p"/email_threads/#{email_thread}/edit"}>Edit</.link>
         </:action>
         <:action :let={{id, email_thread}}>
           <.link
@@ -66,7 +65,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
   @impl Phoenix.LiveView
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)
-      when type in [:created, :updated, :deleted] do
+      when type in [:created, :deleted] do
     {:noreply,
      stream(
        socket,

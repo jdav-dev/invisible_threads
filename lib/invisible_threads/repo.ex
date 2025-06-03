@@ -6,9 +6,18 @@ defmodule InvisibleThreads.Repo do
   @doc """
   Run migrations for a user's repo.
   """
-  def migrate_repo(user) do
-    with_dynamic_repo(user, fn ->
+  def migrate_user(user_or_scope) do
+    with_dynamic_repo(user_or_scope, fn ->
       Ecto.Migrator.run(__MODULE__, :up, all: true)
+    end)
+  end
+
+  @doc """
+  Roll back a user's repo.
+  """
+  def rollback_user(user_or_scope, step \\ 1) do
+    with_dynamic_repo(user_or_scope, fn ->
+      Ecto.Migrator.run(__MODULE__, :down, step: step)
     end)
   end
 
@@ -17,16 +26,16 @@ defmodule InvisibleThreads.Repo do
 
   ## Examples
 
-      iex> with_dynamic_repo(user, fn -> InvisibleThreads.Repo.query!("SELECT 1") end)
+      iex> with_dynamic_repo(user_or_scope, fn -> InvisibleThreads.Repo.query!("SELECT 1") end)
       %Exqlite.Result{command: :execute, columns: ["1"], rows: [[1]], num_rows: 1}
 
   """
-  def with_dynamic_repo(user, callback) do
+  def with_dynamic_repo(user_or_scope, callback) do
     default_dynamic_repo = get_dynamic_repo()
 
     {:ok, repo} =
       start_link(
-        database: database(user),
+        database: database(user_or_scope),
         pool_size: 1,
         # FIXME: Remove the following options outside of dev
         stacktrace: true,
@@ -40,6 +49,10 @@ defmodule InvisibleThreads.Repo do
       put_dynamic_repo(default_dynamic_repo)
       Supervisor.stop(repo)
     end
+  end
+
+  def database(%InvisibleThreads.Accounts.Scope{user: user}) do
+    database(user)
   end
 
   def database(%InvisibleThreads.Accounts.User{id: user_id}) do

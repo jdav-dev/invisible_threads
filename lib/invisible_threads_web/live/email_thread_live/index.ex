@@ -3,7 +3,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
   alias InvisibleThreads.Conversations
 
-  @impl true
+  @impl Phoenix.LiveView
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
@@ -22,8 +22,9 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
         row_click={fn {_id, email_thread} -> JS.navigate(~p"/email_threads/#{email_thread}") end}
       >
         <:col :let={{_id, email_thread}} label="Name">{email_thread.name}</:col>
-        <:col :let={{_id, email_thread}} label="Tag">{email_thread.tag}</:col>
-        <:col :let={{_id, email_thread}} label="Recipients">{email_thread.recipients}</:col>
+        <:col :let={{_id, email_thread}} label="Recipients">
+          {email_thread.recipients |> Enum.map(& &1.name) |> Enum.join(", ")}
+        </:col>
         <:action :let={{_id, email_thread}}>
           <div class="sr-only">
             <.link navigate={~p"/email_threads/#{email_thread}"}>Show</.link>
@@ -43,7 +44,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
     """
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Conversations.subscribe_email_threads(socket.assigns.current_scope)
@@ -55,7 +56,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
      |> stream(:email_threads, Conversations.list_email_threads(socket.assigns.current_scope))}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("delete", %{"id" => id}, socket) do
     email_thread = Conversations.get_email_thread!(socket.assigns.current_scope, id)
     {:ok, _} = Conversations.delete_email_thread(socket.assigns.current_scope, email_thread)
@@ -63,9 +64,15 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
     {:noreply, stream_delete(socket, :email_threads, email_thread)}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)
       when type in [:created, :updated, :deleted] do
-    {:noreply, stream(socket, :email_threads, Conversations.list_email_threads(socket.assigns.current_scope), reset: true)}
+    {:noreply,
+     stream(
+       socket,
+       :email_threads,
+       Conversations.list_email_threads(socket.assigns.current_scope),
+       reset: true
+     )}
   end
 end

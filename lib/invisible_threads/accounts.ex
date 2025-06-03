@@ -47,7 +47,7 @@ defmodule InvisibleThreads.Accounts do
     with {:ok, %{"ID" => id, "InboundAddress" => inbound_address, "Name" => name}} <-
            Postmark.get_server(token) do
       user = %User{id: id, server_token: token, inbound_address: inbound_address, name: name}
-      Repo.migrate_repo(user)
+      Repo.migrate_user(user)
       {:ok, user}
     end
   end

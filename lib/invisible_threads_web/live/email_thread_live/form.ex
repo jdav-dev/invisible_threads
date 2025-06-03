@@ -4,7 +4,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
   alias InvisibleThreads.Conversations
   alias InvisibleThreads.Conversations.EmailThread
 
-  @impl true
+  @impl Phoenix.LiveView
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
@@ -14,15 +14,29 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
       </.header>
 
       <.form for={@form} id="email_thread-form" phx-change="validate" phx-submit="save">
-        <.input field={@form[:name]} type="text" label="Name" />
-        <.input field={@form[:tag]} type="text" label="Tag" />
-        <.input
-          field={@form[:recipients]}
-          type="select"
-          multiple
-          label="Recipients"
-          options={[{"Option 1", "option1"}, {"Option 2", "option2"}]}
-        />
+        <.input field={@form[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
+        <.inputs_for :let={rf} field={@form[:recipients]}>
+          <input type="hidden" name={"#{@form[:recipients_sort].name}[]"} value={rf.index} />
+          <.input field={rf[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
+          <.input field={rf[:address]} type="email" label="Address" phx-debounce autocomplete="off" />
+          <button
+            type="button"
+            name={"#{@form[:recipients_drop].name}[]"}
+            value={rf.index}
+            phx-click={JS.dispatch("change")}
+          >
+            <.icon name="hero-x-mark" class="w-6 h-6 relative top-2" />
+          </button>
+        </.inputs_for>
+        <input type="hidden" name={"#{@form.name}[recipients_drop][]"} />
+        <button
+          type="button"
+          name={"#{@form.name}[recipients_sort][]"}
+          value="new"
+          phx-click={JS.dispatch("change")}
+        >
+          add more
+        </button>
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Email thread</.button>
           <.button navigate={return_path(@current_scope, @return_to, @email_thread)}>Cancel</.button>
@@ -32,7 +46,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     """
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     {:ok,
      socket
@@ -49,21 +63,33 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     socket
     |> assign(:page_title, "Edit Email thread")
     |> assign(:email_thread, email_thread)
-    |> assign(:form, to_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread)))
+    |> assign(
+      :form,
+      to_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
+    )
   end
 
   defp apply_action(socket, :new, _params) do
-    email_thread = %EmailThread{user_id: socket.assigns.current_scope.user.id}
+    email_thread = %EmailThread{}
 
     socket
     |> assign(:page_title, "New Email thread")
     |> assign(:email_thread, email_thread)
-    |> assign(:form, to_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread)))
+    |> assign(
+      :form,
+      to_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
+    )
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("validate", %{"email_thread" => email_thread_params}, socket) do
-    changeset = Conversations.change_email_thread(socket.assigns.current_scope, socket.assigns.email_thread, email_thread_params)
+    changeset =
+      Conversations.change_email_thread(
+        socket.assigns.current_scope,
+        socket.assigns.email_thread,
+        email_thread_params
+      )
+
     {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
   end
 
@@ -72,7 +98,11 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
   end
 
   defp save_email_thread(socket, :edit, email_thread_params) do
-    case Conversations.update_email_thread(socket.assigns.current_scope, socket.assigns.email_thread, email_thread_params) do
+    case Conversations.update_email_thread(
+           socket.assigns.current_scope,
+           socket.assigns.email_thread,
+           email_thread_params
+         ) do
       {:ok, email_thread} ->
         {:noreply,
          socket

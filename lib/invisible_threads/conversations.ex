@@ -4,10 +4,10 @@ defmodule InvisibleThreads.Conversations do
   """
 
   import Ecto.Query, warn: false
-  alias InvisibleThreads.Repo
 
-  alias InvisibleThreads.Conversations.EmailThread
   alias InvisibleThreads.Accounts.Scope
+  alias InvisibleThreads.Conversations.EmailThread
+  alias InvisibleThreads.Repo
 
   @doc """
   Subscribes to scoped notifications about any email_thread changes.
@@ -41,7 +41,9 @@ defmodule InvisibleThreads.Conversations do
 
   """
   def list_email_threads(%Scope{} = scope) do
-    Repo.all(from email_thread in EmailThread, where: email_thread.user_id == ^scope.user.id)
+    Repo.with_dynamic_repo(scope.user, fn ->
+      Repo.all(from(email_thread in EmailThread))
+    end)
   end
 
   @doc """
@@ -59,7 +61,9 @@ defmodule InvisibleThreads.Conversations do
 
   """
   def get_email_thread!(%Scope{} = scope, id) do
-    Repo.get_by!(EmailThread, id: id, user_id: scope.user.id)
+    Repo.with_dynamic_repo(scope.user, fn ->
+      Repo.get!(EmailThread, id)
+    end)
   end
 
   @doc """
@@ -78,7 +82,7 @@ defmodule InvisibleThreads.Conversations do
     with {:ok, email_thread = %EmailThread{}} <-
            %EmailThread{}
            |> EmailThread.changeset(attrs, scope)
-           |> Repo.insert() do
+           |> then(&Repo.with_dynamic_repo(scope.user, fn -> Repo.insert(&1) end)) do
       broadcast(scope, {:created, email_thread})
       {:ok, email_thread}
     end
@@ -97,12 +101,10 @@ defmodule InvisibleThreads.Conversations do
 
   """
   def update_email_thread(%Scope{} = scope, %EmailThread{} = email_thread, attrs) do
-    true = email_thread.user_id == scope.user.id
-
     with {:ok, email_thread = %EmailThread{}} <-
            email_thread
            |> EmailThread.changeset(attrs, scope)
-           |> Repo.update() do
+           |> then(&Repo.with_dynamic_repo(scope.user, fn -> Repo.update(&1) end)) do
       broadcast(scope, {:updated, email_thread})
       {:ok, email_thread}
     end
@@ -121,10 +123,8 @@ defmodule InvisibleThreads.Conversations do
 
   """
   def delete_email_thread(%Scope{} = scope, %EmailThread{} = email_thread) do
-    true = email_thread.user_id == scope.user.id
-
     with {:ok, email_thread = %EmailThread{}} <-
-           Repo.delete(email_thread) do
+           Repo.with_dynamic_repo(scope.user, fn -> Repo.delete(email_thread) end) do
       broadcast(scope, {:deleted, email_thread})
       {:ok, email_thread}
     end
@@ -140,8 +140,6 @@ defmodule InvisibleThreads.Conversations do
 
   """
   def change_email_thread(%Scope{} = scope, %EmailThread{} = email_thread, attrs \\ %{}) do
-    true = email_thread.user_id == scope.user.id
-
     EmailThread.changeset(email_thread, attrs, scope)
   end
 end

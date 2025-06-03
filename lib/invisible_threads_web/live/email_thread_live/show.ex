@@ -3,7 +3,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
 
   alias InvisibleThreads.Conversations
 
-  @impl true
+  @impl Phoenix.LiveView
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
@@ -14,7 +14,10 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
           <.button navigate={~p"/email_threads"}>
             <.icon name="hero-arrow-left" />
           </.button>
-          <.button variant="primary" navigate={~p"/email_threads/#{@email_thread}/edit?return_to=show"}>
+          <.button
+            variant="primary"
+            navigate={~p"/email_threads/#{@email_thread}/edit?return_to=show"}
+          >
             <.icon name="hero-pencil-square" /> Edit email_thread
           </.button>
         </:actions>
@@ -22,14 +25,13 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
 
       <.list>
         <:item title="Name">{@email_thread.name}</:item>
-        <:item title="Tag">{@email_thread.tag}</:item>
         <:item title="Recipients">{@email_thread.recipients}</:item>
       </.list>
     </Layouts.app>
     """
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(%{"id" => id}, _session, socket) do
     if connected?(socket) do
       Conversations.subscribe_email_threads(socket.assigns.current_scope)
@@ -41,7 +43,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
      |> assign(:email_thread, Conversations.get_email_thread!(socket.assigns.current_scope, id))}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_info(
         {:updated, %InvisibleThreads.Conversations.EmailThread{id: id} = email_thread},
         %{assigns: %{email_thread: %{id: id}}} = socket

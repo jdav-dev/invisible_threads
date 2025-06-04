@@ -21,7 +21,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
         rows={@streams.email_threads}
         row_click={fn {_id, email_thread} -> JS.navigate(~p"/email_threads/#{email_thread}") end}
       >
-        <:col :let={{_id, email_thread}} label="Name">{email_thread.name}</:col>
+        <:col :let={{_id, email_thread}} label="Subject">{email_thread.subject}</:col>
         <:col :let={{_id, email_thread}} label="Recipients">
           {email_thread.recipients |> Enum.map(& &1.name) |> Enum.join(", ")}
         </:col>

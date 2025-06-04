@@ -14,7 +14,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
       </.header>
 
       <.form for={@form} id="email_thread-form" phx-change="validate" phx-submit="save">
-        <.input field={@form[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
+        <.input field={@form[:subject]} type="text" label="Subject" phx-debounce autocomplete="off" />
         <.inputs_for :let={rf} field={@form[:recipients]}>
           <input type="hidden" name={"#{@form[:recipients_sort].name}[]"} value={rf.index} />
           <.input field={rf[:name]} type="text" label="Name" phx-debounce autocomplete="off" />

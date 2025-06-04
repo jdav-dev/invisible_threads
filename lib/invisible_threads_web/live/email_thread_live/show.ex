@@ -18,7 +18,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
       </.header>
 
       <.list>
-        <:item title="Name">{@email_thread.name}</:item>
+        <:item title="Subject">{@email_thread.subject}</:item>
         <:item title="Recipients">
           <ul>
             <li :for={recipient <- @email_thread.recipients}>

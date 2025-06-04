@@ -5,8 +5,10 @@ defmodule InvisibleThreads.Conversations do
 
   import Ecto.Query, warn: false
 
+  alias Ecto.Multi
   alias InvisibleThreads.Accounts.Scope
   alias InvisibleThreads.Conversations.EmailThread
+  alias InvisibleThreads.Conversations.ThreadNotifier
   alias InvisibleThreads.Repo
 
   @doc """
@@ -78,12 +80,27 @@ defmodule InvisibleThreads.Conversations do
 
   """
   def create_email_thread(%Scope{} = scope, attrs) do
-    with {:ok, email_thread = %EmailThread{}} <-
-           %EmailThread{}
-           |> EmailThread.changeset(attrs, scope)
-           |> then(&Repo.with_dynamic_repo(scope.user, fn -> Repo.insert(&1) end)) do
-      broadcast(scope, {:created, email_thread})
-      {:ok, email_thread}
+    email_thread_changeset = EmailThread.changeset(%EmailThread{}, attrs, scope)
+
+    Multi.new()
+    |> Multi.insert(:email_thread, email_thread_changeset)
+    |> Multi.run(:deliver_introduction, fn _repo, %{email_thread: email_thread} ->
+      ThreadNotifier.deliver_introduction(email_thread, scope.user.inbound_address)
+    end)
+    |> Multi.update(:set_message_id, fn %{
+                                          email_thread: email_thread,
+                                          deliver_introduction: message_id
+                                        } ->
+      EmailThread.first_message_id_changeset(email_thread, message_id)
+    end)
+    |> then(&Repo.with_dynamic_repo(scope.user, fn -> Repo.transaction(&1) end))
+    |> case do
+      {:ok, %{set_message_id: email_thread}} ->
+        broadcast(scope, {:created, email_thread})
+        {:ok, email_thread}
+
+      {:error, _name, reason, _changes_so_far} ->
+        {:error, reason}
     end
   end
 
@@ -100,10 +117,19 @@ defmodule InvisibleThreads.Conversations do
 
   """
   def delete_email_thread(%Scope{} = scope, %EmailThread{} = email_thread) do
-    with {:ok, email_thread = %EmailThread{}} <-
-           Repo.with_dynamic_repo(scope.user, fn -> Repo.delete(email_thread) end) do
-      broadcast(scope, {:deleted, email_thread})
-      {:ok, email_thread}
+    Multi.new()
+    |> Multi.delete(:email_thread, email_thread)
+    |> Multi.run(:deliver_closing, fn _repo, %{email_thread: email_thread} ->
+      ThreadNotifier.deliver_closing(email_thread, scope.user.inbound_address)
+    end)
+    |> then(&Repo.with_dynamic_repo(scope.user, fn -> Repo.transaction(&1) end))
+    |> case do
+      {:ok, %{email_thread: email_thread}} ->
+        broadcast(scope, {:deleted, email_thread})
+        {:ok, email_thread}
+
+      {:error, _name, reason, _changes_so_far} ->
+        {:error, reason}
     end
   end
 

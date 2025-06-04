@@ -5,13 +5,14 @@ defmodule InvisibleThreads.Repo.Migrations.CreateEmailThreads do
     create table(:email_threads, primary_key: false) do
       add :id, :binary_id, primary_key: true
       # 1000 is the max length of Postmark tags
-      add :name, :string, null: false, size: 1000
+      add :subject, :string, null: false, size: 1000
       # 50 is the max number of recipients for a single Postmark email
       add :recipients, :map, null: false, size: 50
+      add :first_message_id, :string
 
       timestamps type: :utc_datetime, updated_at: false
     end
 
-    create unique_index(:email_threads, [:name])
+    create unique_index(:email_threads, [:subject])
   end
 end

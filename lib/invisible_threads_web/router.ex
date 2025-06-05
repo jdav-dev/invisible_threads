@@ -44,9 +44,7 @@ defmodule InvisibleThreadsWeb.Router do
   scope "/api", InvisibleThreadsWeb do
     pipe_through :api
 
-    post "/postmark/inbound_webhook/:user_id/:email_thread_id",
-         PostmarkController,
-         :inbound_webhook
+    post "/postmark/inbound_webhook/:user_id", PostmarkController, :inbound_webhook
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

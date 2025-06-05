@@ -3,15 +3,12 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
   alias InvisibleThreads.Mailer
 
-  defp deliver(email_thread, inbound_address, body) do
+  defp deliver(email, email_thread, inbound_address) do
     email =
-      new()
-      # TODO: Send from Postmark sender signature
-      |> from({"Invisible Threads", "contact@example.com"})
+      email
       |> put_reply_to(email_thread, inbound_address)
       |> bcc(email_thread.recipients)
       |> subject(email_thread.subject)
-      |> text_body(body)
       |> put_headers(email_thread.first_message_id)
       |> put_provider_option(:tag, email_thread.subject)
 
@@ -36,7 +33,10 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
   def deliver_introduction(email_thread, inbound_address) do
     participants = email_thread.recipients |> Enum.map(& &1.name) |> Enum.join("\n- ")
 
-    deliver(email_thread, inbound_address, """
+    new()
+    # TODO: Send from Postmark sender signature
+    |> from({"Invisible Threads", "contact@example.com"})
+    |> text_body("""
     Hello,
 
     You've been added to an invisible thread — a shared conversation where all replies will be echoed to the group, but individual email addresses remain private.
@@ -47,11 +47,51 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
     Feel free to reply to this message to start the conversation.  All responses will be visible to everyone on the thread.
     """)
+    |> deliver(email_thread, inbound_address)
   end
 
   def deliver_closing(email_thread, inbound_address) do
-    deliver(email_thread, inbound_address, """
+    new()
+    # TODO: Send from Postmark sender signature
+    |> from({"Invisible Threads", "contact@example.com"})
+    |> text_body("""
     This invisible thread has been closed.  No further messages will be delivered or shared.
     """)
+    |> deliver(email_thread, inbound_address)
+  end
+
+  def forward(email_thread, inbound_address, params) do
+    new()
+    # TODO: Send from Postmark sender signature
+    |> from({params["FromName"], "contact@example.com"})
+    |> text_body(params["TextBody"])
+    |> html_body(params["HtmlBody"])
+    |> put_attachments(params["Attachments"])
+    |> deliver(email_thread, inbound_address)
+  end
+
+  defp put_attachments(email, attachments) do
+    for %{
+          "Name" => file_name,
+          "Content" => data,
+          "ContentType" => content_type,
+          "ContentID" => content_id
+        } <- attachments,
+        reduce: email do
+      acc ->
+        inline_params =
+          case content_id do
+            "cid:" <> cid -> [type: :inline, cid: cid]
+            "" -> []
+          end
+
+        attachment(
+          acc,
+          Swoosh.Attachment.new({:data, data}, [
+            {:filename, file_name},
+            {:content_type, content_type} | inline_params
+          ])
+        )
+    end
   end
 end

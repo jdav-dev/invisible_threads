@@ -3,13 +3,8 @@ import Config
 config :invisible_threads,
   postmark_req_options: [plug: {Req.Test, InvisibleThreads.Postmark}, retry: false]
 
-# Configure your database
-#
-# The MIX_TEST_PARTITION environment variable can be used
-# to provide built-in test partitioning in CI environment.
-# Run `mix help test` for more information.
-config :invisible_threads, InvisibleThreads.Repo,
-  database_dir:
+config :invisible_threads,
+  data_dir:
     Path.join([
       System.tmp_dir!(),
       "invisible_threads_test",
@@ -24,7 +19,7 @@ config :invisible_threads, InvisibleThreadsWeb.Endpoint,
   server: false
 
 # In test we don't send emails
-config :invisible_threads, InvisibleThreads.Mailer, adapter: Swoosh.Adapters.Test
+config :invisible_threads, InvisibleThreads.Mailer, adapter: InvisibleThreads.TestSwooshAdapter
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false

@@ -17,28 +17,8 @@ defmodule InvisibleThreads.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import InvisibleThreads.DataCase
+      import Swoosh.TestAssertions
     end
-  end
-
-  setup tags do
-    InvisibleThreads.DataCase.setup_sandbox(tags)
-    :ok
-  end
-
-  @doc """
-  Sets up the sandbox based on the test tags.
-  """
-  def setup_sandbox(tags) do
-    database_dir = InvisibleThreads.Repo.database_dir()
-
-    on_exit(fn ->
-      if !tags[:async] do
-        database_dir
-        |> Path.join("user_*.db")
-        |> Path.wildcard()
-        |> Enum.each(&File.rm!/1)
-      end
-    end)
   end
 
   @doc """

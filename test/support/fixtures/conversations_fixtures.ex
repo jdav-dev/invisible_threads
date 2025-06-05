@@ -10,9 +10,11 @@ defmodule InvisibleThreads.ConversationsFixtures do
   def email_thread_fixture(scope, attrs \\ %{}) do
     attrs =
       Enum.into(attrs, %{
-        name: "some name",
-        recipients: ["option1", "option2"],
-        tag: "some tag"
+        subject: "some subject",
+        recipients: [
+          %{name: "Recipient 1", address: "one@example.com"},
+          %{name: "Recipient 2", address: "two@example.com"}
+        ]
       })
 
     {:ok, email_thread} = InvisibleThreads.Conversations.create_email_thread(scope, attrs)

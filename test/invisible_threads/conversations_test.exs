@@ -1,15 +1,16 @@
 defmodule InvisibleThreads.ConversationsTest do
-  use InvisibleThreads.DataCase
+  use InvisibleThreads.DataCase, async: true
 
   alias InvisibleThreads.Conversations
 
   describe "email_threads" do
-    alias InvisibleThreads.Conversations.EmailThread
-
     import InvisibleThreads.AccountsFixtures, only: [user_scope_fixture: 0]
     import InvisibleThreads.ConversationsFixtures
 
-    @invalid_attrs %{name: nil, tag: nil, recipients: nil}
+    alias InvisibleThreads.Conversations.EmailRecipient
+    alias InvisibleThreads.Conversations.EmailThread
+
+    @invalid_attrs %{subject: nil, recipients: nil}
 
     test "list_email_threads/1 returns all scoped email_threads" do
       scope = user_scope_fixture()
@@ -20,28 +21,37 @@ defmodule InvisibleThreads.ConversationsTest do
       assert Conversations.list_email_threads(other_scope) == [other_email_thread]
     end
 
-    test "get_email_thread!/2 returns the email_thread with given id" do
+    test "get_email_thread/2 returns the email_thread with given id" do
       scope = user_scope_fixture()
       email_thread = email_thread_fixture(scope)
       other_scope = user_scope_fixture()
-      assert Conversations.get_email_thread!(scope, email_thread.id) == email_thread
-
-      assert_raise Ecto.NoResultsError, fn ->
-        Conversations.get_email_thread!(other_scope, email_thread.id)
-      end
+      assert Conversations.get_email_thread(scope, email_thread.id) == email_thread
+      refute Conversations.get_email_thread(other_scope, email_thread.id)
     end
 
     test "create_email_thread/2 with valid data creates a email_thread" do
-      valid_attrs = %{name: "some name", tag: "some tag", recipients: ["option1", "option2"]}
+      valid_attrs = %{
+        subject: "some subject",
+        recipients: [
+          %{name: "Recipient 1", address: "one@example.com"},
+          %{name: "Recipient 2", address: "two@example.com"}
+        ]
+      }
+
       scope = user_scope_fixture()
 
       assert {:ok, %EmailThread{} = email_thread} =
                Conversations.create_email_thread(scope, valid_attrs)
 
-      assert email_thread.name == "some name"
-      assert email_thread.tag == "some tag"
-      assert email_thread.recipients == ["option1", "option2"]
-      assert email_thread.user_id == scope.user.id
+      assert email_thread.subject == "some subject"
+      assert is_binary(email_thread.first_message_id)
+      assert_email_sent(headers: %{"Message-ID" => email_thread.first_message_id})
+      assert is_struct(email_thread.inserted_at, DateTime)
+
+      assert email_thread.recipients == [
+               %EmailRecipient{name: "Recipient 1", address: "one@example.com"},
+               %EmailRecipient{name: "Recipient 2", address: "two@example.com"}
+             ]
     end
 
     test "create_email_thread/2 with invalid data returns error changeset" do
@@ -51,62 +61,22 @@ defmodule InvisibleThreads.ConversationsTest do
                Conversations.create_email_thread(scope, @invalid_attrs)
     end
 
-    test "update_email_thread/3 with valid data updates the email_thread" do
-      scope = user_scope_fixture()
-      email_thread = email_thread_fixture(scope)
-
-      update_attrs = %{
-        name: "some updated name",
-        tag: "some updated tag",
-        recipients: ["option1"]
-      }
-
-      assert {:ok, %EmailThread{} = email_thread} =
-               Conversations.update_email_thread(scope, email_thread, update_attrs)
-
-      assert email_thread.name == "some updated name"
-      assert email_thread.tag == "some updated tag"
-      assert email_thread.recipients == ["option1"]
-    end
-
-    test "update_email_thread/3 with invalid scope raises" do
-      scope = user_scope_fixture()
-      other_scope = user_scope_fixture()
-      email_thread = email_thread_fixture(scope)
-
-      assert_raise MatchError, fn ->
-        Conversations.update_email_thread(other_scope, email_thread, %{})
-      end
-    end
-
-    test "update_email_thread/3 with invalid data returns error changeset" do
-      scope = user_scope_fixture()
-      email_thread = email_thread_fixture(scope)
-
-      assert {:error, %Ecto.Changeset{}} =
-               Conversations.update_email_thread(scope, email_thread, @invalid_attrs)
-
-      assert email_thread == Conversations.get_email_thread!(scope, email_thread.id)
-    end
-
     test "delete_email_thread/2 deletes the email_thread" do
       scope = user_scope_fixture()
       email_thread = email_thread_fixture(scope)
       assert {:ok, %EmailThread{}} = Conversations.delete_email_thread(scope, email_thread)
 
-      assert_raise Ecto.NoResultsError, fn ->
-        Conversations.get_email_thread!(scope, email_thread.id)
-      end
+      refute Conversations.get_email_thread(scope, email_thread.id)
     end
 
-    test "delete_email_thread/2 with invalid scope raises" do
+    test "delete_email_thread/2 with invalid scope is a no-op" do
       scope = user_scope_fixture()
       other_scope = user_scope_fixture()
       email_thread = email_thread_fixture(scope)
 
-      assert_raise MatchError, fn ->
-        Conversations.delete_email_thread(other_scope, email_thread)
-      end
+      assert {:ok, email_thread} == Conversations.delete_email_thread(other_scope, email_thread)
+      refute Conversations.get_email_thread(other_scope, email_thread.id)
+      assert email_thread == Conversations.get_email_thread(scope, email_thread.id)
     end
 
     test "change_email_thread/2 returns a email_thread changeset" do

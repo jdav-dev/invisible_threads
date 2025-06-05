@@ -37,10 +37,12 @@ defmodule InvisibleThreads.Accounts do
   end
 
   defp user_file(id) do
-    data_dir =
-      Application.get_env(:invisible_threads, :data_dir, Path.expand("../../data", __DIR__))
+    Path.join(data_dir(), "#{id}.etf")
+  end
 
-    Path.join(data_dir, "#{id}.etf")
+  @doc false
+  def data_dir do
+    Application.get_env(:invisible_threads, :data_dir, Path.expand("../../data", __DIR__))
   end
 
   @doc """
@@ -76,11 +78,12 @@ defmodule InvisibleThreads.Accounts do
   @doc """
   Generates a session token.
   """
-  def generate_user_session_token(user) do
-    token_inserted_at = DateTime.utc_now()
+  def generate_user_session_token(user, token_inserted_at \\ DateTime.utc_now()) do
+    signed_at = DateTime.to_unix(token_inserted_at)
 
     Phoenix.Token.sign(InvisibleThreadsWeb.Endpoint, @token_salt, {user.id, token_inserted_at},
-      max_age: @session_validity_in_seconds
+      max_age: @session_validity_in_seconds,
+      signed_at: signed_at
     )
   end
 
@@ -109,9 +112,6 @@ defmodule InvisibleThreads.Accounts do
   def login_user_by_server_token(token) do
     with {:ok, %{"ID" => id, "InboundAddress" => inbound_address, "Name" => name}} <-
            Postmark.get_server(token) do
-      inbound_webhook_password =
-        :crypto.strong_rand_bytes(64) |> Base.url_encode64(padding: false) |> binary_part(0, 64)
-
       user =
         update_user!(
           id,
@@ -119,7 +119,8 @@ defmodule InvisibleThreads.Accounts do
             server_token: token,
             inbound_address: inbound_address,
             name: name,
-            inbound_webhook_password: inbound_webhook_password
+            inbound_webhook_password:
+              &1.inbound_webhook_password || new_inbound_webhook_password()
           )
         )
 
@@ -127,5 +128,9 @@ defmodule InvisibleThreads.Accounts do
 
       {:ok, user}
     end
+  end
+
+  defp new_inbound_webhook_password do
+    :crypto.strong_rand_bytes(64) |> Base.url_encode64(padding: false) |> binary_part(0, 64)
   end
 end

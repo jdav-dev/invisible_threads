@@ -1,5 +1,5 @@
 defmodule InvisibleThreadsWeb.PageControllerTest do
-  use InvisibleThreadsWeb.ConnCase
+  use InvisibleThreadsWeb.ConnCase, async: true
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")

@@ -4,8 +4,6 @@ defmodule InvisibleThreads.AccountsFixtures do
   entities via the `InvisibleThreads.Accounts` context.
   """
 
-  import Ecto.Query
-
   alias InvisibleThreads.Accounts
   alias InvisibleThreads.Accounts.Scope
   alias InvisibleThreads.Accounts.User
@@ -17,9 +15,9 @@ defmodule InvisibleThreads.AccountsFixtures do
 
     Enum.into(attrs, %{
       id: id,
-      server_token: valid_user_server_token(),
       inbound_address: "user_#{id}@example.com",
-      name: "User #{id}"
+      name: "User #{id}",
+      server_token: valid_user_server_token()
     })
   end
 
@@ -49,27 +47,5 @@ defmodule InvisibleThreads.AccountsFixtures do
 
   def user_scope_fixture(user) do
     Scope.for_user(user)
-  end
-
-  def override_token_authenticated_at(user, token, authenticated_at) when is_binary(token) do
-    InvisibleThreads.Repo.with_dynamic_repo(user, fn ->
-      InvisibleThreads.Repo.update_all(
-        from(t in Accounts.UserToken,
-          where: t.token == ^token
-        ),
-        set: [authenticated_at: authenticated_at]
-      )
-    end)
-  end
-
-  def offset_user_token(user, token, amount_to_add, unit) do
-    dt = DateTime.add(DateTime.utc_now(:second), amount_to_add, unit)
-
-    InvisibleThreads.Repo.with_dynamic_repo(user, fn ->
-      InvisibleThreads.Repo.update_all(
-        from(ut in Accounts.UserToken, where: ut.token == ^token),
-        set: [inserted_at: dt, authenticated_at: dt]
-      )
-    end)
   end
 end

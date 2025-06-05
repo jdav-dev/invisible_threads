@@ -1,12 +1,12 @@
 defmodule InvisibleThreadsWeb.UserAuthTest do
-  use InvisibleThreadsWeb.ConnCase
+  use InvisibleThreadsWeb.ConnCase, async: true
 
-  import InvisibleThreads.AccountsFixtures
-
+  alias Phoenix.LiveView
   alias InvisibleThreads.Accounts
   alias InvisibleThreads.Accounts.Scope
   alias InvisibleThreadsWeb.UserAuth
-  alias Phoenix.LiveView
+
+  import InvisibleThreads.AccountsFixtures
 
   @remember_me_cookie "_invisible_threads_web_user_remember_me"
   @remember_me_cookie_max_age 60 * 60 * 24 * 14
@@ -25,8 +25,8 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
       conn = UserAuth.log_in_user(conn, user)
       assert token = get_session(conn, :user_token)
       assert get_session(conn, :live_socket_id) == "users_sessions:#{Base.url_encode64(token)}"
-      assert redirected_to(conn) == ~p"/"
-      assert Accounts.verify_session_token(user, token)
+      assert redirected_to(conn) == ~p"/email_threads"
+      assert Accounts.get_user_by_session_token(token)
     end
 
     test "clears everything previously stored in the session", %{conn: conn, user: user} do
@@ -80,7 +80,7 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
         |> assign(:current_scope, Scope.for_user(user))
         |> UserAuth.log_in_user(user)
 
-      assert redirected_to(conn) == "/"
+      assert redirected_to(conn) == "/email_threads"
     end
 
     test "writes a cookie if remember_me was set in previous session", %{conn: conn, user: user} do
@@ -112,18 +112,15 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
 
       conn =
         conn
-        |> put_session(:user, user)
         |> put_session(:user_token, user_token)
         |> put_req_cookie(@remember_me_cookie, user_token)
         |> fetch_cookies()
         |> UserAuth.log_out_user()
 
-      refute get_session(conn, :user)
       refute get_session(conn, :user_token)
       refute conn.cookies[@remember_me_cookie]
       assert %{max_age: 0} = conn.resp_cookies[@remember_me_cookie]
       assert redirected_to(conn) == ~p"/"
-      refute Accounts.verify_session_token(user, user_token)
     end
 
     test "broadcasts to the given live_socket_id", %{conn: conn} do
@@ -150,10 +147,7 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
       user_token = Accounts.generate_user_session_token(user)
 
       conn =
-        conn
-        |> put_session(:user, user)
-        |> put_session(:user_token, user_token)
-        |> UserAuth.fetch_current_scope_for_user([])
+        conn |> put_session(:user_token, user_token) |> UserAuth.fetch_current_scope_for_user([])
 
       assert conn.assigns.current_scope.user.id == user.id
       assert get_session(conn, :user_token) == user_token
@@ -168,12 +162,10 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
 
       conn =
         conn
-        |> put_session(:user, user)
         |> put_req_cookie(@remember_me_cookie, signed_token)
         |> UserAuth.fetch_current_scope_for_user([])
 
       assert conn.assigns.current_scope.user.id == user.id
-      assert get_session(conn, :user) == user
       assert get_session(conn, :user_token) == user_token
       assert get_session(conn, :user_remember_me)
 
@@ -192,14 +184,15 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
       logged_in_conn =
         conn |> fetch_cookies() |> UserAuth.log_in_user(user, %{"remember_me" => "true"})
 
-      token = logged_in_conn.cookies[@remember_me_cookie]
+      token =
+        Accounts.generate_user_session_token(user, DateTime.utc_now() |> DateTime.add(-10, :day))
+
       %{value: signed_token} = logged_in_conn.resp_cookies[@remember_me_cookie]
 
-      offset_user_token(user, token, -10, :day)
+      {user, _} = Accounts.get_user_by_session_token(token)
 
       conn =
         conn
-        |> put_session(:user, user)
         |> put_session(:user_token, token)
         |> put_session(:user_remember_me, true)
         |> put_req_cookie(@remember_me_cookie, signed_token)
@@ -221,9 +214,7 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
 
     test "assigns current_scope based on a valid user_token", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)
-
-      session =
-        conn |> put_session(:user, user) |> put_session(:user_token, user_token) |> get_session()
+      session = conn |> put_session(:user_token, user_token) |> get_session()
 
       {:cont, updated_socket} =
         UserAuth.on_mount(:mount_current_scope, %{}, session, %LiveView.Socket{})
@@ -231,14 +222,9 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
       assert updated_socket.assigns.current_scope.user.id == user.id
     end
 
-    test "assigns nil to current_scope assign if there isn't a valid user_token", %{
-      conn: conn,
-      user: user
-    } do
+    test "assigns nil to current_scope assign if there isn't a valid user_token", %{conn: conn} do
       user_token = "invalid_token"
-
-      session =
-        conn |> put_session(:user, user) |> put_session(:user_token, user_token) |> get_session()
+      session = conn |> put_session(:user_token, user_token) |> get_session()
 
       {:cont, updated_socket} =
         UserAuth.on_mount(:mount_current_scope, %{}, session, %LiveView.Socket{})
@@ -254,26 +240,12 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
 
       assert updated_socket.assigns.current_scope == nil
     end
-
-    test "assigns nil to current_scope assign if there isn't a user", %{conn: conn, user: user} do
-      user_token = Accounts.generate_user_session_token(user)
-
-      session =
-        conn |> put_session(:user_token, user_token) |> get_session()
-
-      {:cont, updated_socket} =
-        UserAuth.on_mount(:mount_current_scope, %{}, session, %LiveView.Socket{})
-
-      assert updated_socket.assigns.current_scope == nil
-    end
   end
 
   describe "on_mount :require_authenticated" do
     test "authenticates current_scope based on a valid user_token", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)
-
-      session =
-        conn |> put_session(:user, user) |> put_session(:user_token, user_token) |> get_session()
+      session = conn |> put_session(:user_token, user_token) |> get_session()
 
       {:cont, updated_socket} =
         UserAuth.on_mount(:require_authenticated, %{}, session, %LiveView.Socket{})
@@ -281,11 +253,9 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
       assert updated_socket.assigns.current_scope.user.id == user.id
     end
 
-    test "redirects to login page if there isn't a valid user_token", %{conn: conn, user: user} do
+    test "redirects to login page if there isn't a valid user_token", %{conn: conn} do
       user_token = "invalid_token"
-
-      session =
-        conn |> put_session(:user, user) |> put_session(:user_token, user_token) |> get_session()
+      session = conn |> put_session(:user_token, user_token) |> get_session()
 
       socket = %LiveView.Socket{
         endpoint: InvisibleThreadsWeb.Endpoint,
@@ -305,23 +275,6 @@ defmodule InvisibleThreadsWeb.UserAuthTest do
       }
 
       {:halt, updated_socket} = UserAuth.on_mount(:require_authenticated, %{}, session, socket)
-      assert updated_socket.assigns.current_scope == nil
-    end
-
-    test "redirects to login page if there isn't a user", %{conn: conn, user: user} do
-      user_token = Accounts.generate_user_session_token(user)
-
-      session =
-        conn |> put_session(:user_token, user_token) |> get_session()
-
-      socket = %LiveView.Socket{
-        endpoint: InvisibleThreadsWeb.Endpoint,
-        assigns: %{__changed__: %{}, flash: %{}}
-      }
-
-      {:halt, updated_socket} =
-        UserAuth.on_mount(:require_authenticated, %{}, session, socket)
-
       assert updated_socket.assigns.current_scope == nil
     end
   end

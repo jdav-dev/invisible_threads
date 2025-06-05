@@ -32,6 +32,7 @@ defmodule InvisibleThreads.Conversations.EmailThread do
     %__MODULE__{}
     |> changeset(attrs, user_scope)
     |> put_change(:id, Ecto.UUID.generate())
+    |> put_change(:inserted_at, DateTime.utc_now())
     |> apply_action(:create)
   end
 end

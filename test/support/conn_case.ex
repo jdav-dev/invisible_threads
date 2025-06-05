@@ -25,14 +25,14 @@ defmodule InvisibleThreadsWeb.ConnCase do
       use InvisibleThreadsWeb, :verified_routes
 
       # Import conveniences for testing with connections
+      import InvisibleThreadsWeb.ConnCase
       import Plug.Conn
       import Phoenix.ConnTest
-      import InvisibleThreadsWeb.ConnCase
+      import Swoosh.TestAssertions
     end
   end
 
-  setup tags do
-    InvisibleThreads.DataCase.setup_sandbox(tags)
+  setup do
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 
@@ -62,22 +62,11 @@ defmodule InvisibleThreadsWeb.ConnCase do
   It returns an updated `conn`.
   """
   def log_in_user(conn, user, opts \\ []) do
-    token = InvisibleThreads.Accounts.generate_user_session_token(user)
-
-    maybe_set_token_authenticated_at(user, token, opts[:token_authenticated_at])
+    token_authenticated_at = opts[:token_authenticated_at] || DateTime.utc_now()
+    token = InvisibleThreads.Accounts.generate_user_session_token(user, token_authenticated_at)
 
     conn
     |> Phoenix.ConnTest.init_test_session(%{})
     |> Plug.Conn.put_session(:user_token, token)
-  end
-
-  defp maybe_set_token_authenticated_at(_user, _token, nil), do: nil
-
-  defp maybe_set_token_authenticated_at(user, token, authenticated_at) do
-    InvisibleThreads.AccountsFixtures.override_token_authenticated_at(
-      user,
-      token,
-      authenticated_at
-    )
   end
 end

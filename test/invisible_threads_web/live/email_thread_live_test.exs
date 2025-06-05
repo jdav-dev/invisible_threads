@@ -1,12 +1,17 @@
 defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
-  use InvisibleThreadsWeb.ConnCase
+  use InvisibleThreadsWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
   import InvisibleThreads.ConversationsFixtures
 
-  @create_attrs %{name: "some name", tag: "some tag", recipients: ["option1", "option2"]}
-  @update_attrs %{name: "some updated name", tag: "some updated tag", recipients: ["option1"]}
-  @invalid_attrs %{name: nil, tag: nil, recipients: []}
+  @create_attrs %{
+    subject: "some subject",
+    recipients: %{
+      "0" => %{name: "Recipient 1", address: "one@example.com"},
+      "1" => %{name: "Recipient 2", address: "two@example.com"}
+    }
+  }
+  @invalid_attrs %{subject: nil}
 
   setup :register_and_log_in_user
 
@@ -22,8 +27,8 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
     test "lists all email_threads", %{conn: conn, email_thread: email_thread} do
       {:ok, _index_live, html} = live(conn, ~p"/email_threads")
 
-      assert html =~ "Listing Email threads"
-      assert html =~ email_thread.name
+      assert html =~ "Listing Threads"
+      assert html =~ email_thread.subject
     end
 
     test "saves new email_thread", %{conn: conn} do
@@ -31,11 +36,14 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
 
       assert {:ok, form_live, _} =
                index_live
-               |> element("a", "New Email thread")
+               |> element("a", "New Thread")
                |> render_click()
                |> follow_redirect(conn, ~p"/email_threads/new")
 
-      assert render(form_live) =~ "New Email thread"
+      assert render(form_live) =~ "New Thread"
+
+      # Click the "add recipient" button twice
+      render_change(form_live, :validate, email_thread: %{recipients_sort: ["new", "new"]})
 
       assert form_live
              |> form("#email_thread-form", email_thread: @invalid_attrs)
@@ -48,34 +56,8 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
                |> follow_redirect(conn, ~p"/email_threads")
 
       html = render(index_live)
-      assert html =~ "Email thread created successfully"
-      assert html =~ "some name"
-    end
-
-    test "updates email_thread in listing", %{conn: conn, email_thread: email_thread} do
-      {:ok, index_live, _html} = live(conn, ~p"/email_threads")
-
-      assert {:ok, form_live, _html} =
-               index_live
-               |> element("#email_threads-#{email_thread.id} a", "Edit")
-               |> render_click()
-               |> follow_redirect(conn, ~p"/email_threads/#{email_thread}/edit")
-
-      assert render(form_live) =~ "Edit Email thread"
-
-      assert form_live
-             |> form("#email_thread-form", email_thread: @invalid_attrs)
-             |> render_change() =~ "can&#39;t be blank"
-
-      assert {:ok, index_live, _html} =
-               form_live
-               |> form("#email_thread-form", email_thread: @update_attrs)
-               |> render_submit()
-               |> follow_redirect(conn, ~p"/email_threads")
-
-      html = render(index_live)
-      assert html =~ "Email thread updated successfully"
-      assert html =~ "some updated name"
+      assert html =~ "Thread created successfully"
+      assert html =~ "some subject"
     end
 
     test "deletes email_thread in listing", %{conn: conn, email_thread: email_thread} do
@@ -95,34 +77,8 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
     test "displays email_thread", %{conn: conn, email_thread: email_thread} do
       {:ok, _show_live, html} = live(conn, ~p"/email_threads/#{email_thread}")
 
-      assert html =~ "Show Email thread"
-      assert html =~ email_thread.name
-    end
-
-    test "updates email_thread and returns to show", %{conn: conn, email_thread: email_thread} do
-      {:ok, show_live, _html} = live(conn, ~p"/email_threads/#{email_thread}")
-
-      assert {:ok, form_live, _} =
-               show_live
-               |> element("a", "Edit")
-               |> render_click()
-               |> follow_redirect(conn, ~p"/email_threads/#{email_thread}/edit?return_to=show")
-
-      assert render(form_live) =~ "Edit Email thread"
-
-      assert form_live
-             |> form("#email_thread-form", email_thread: @invalid_attrs)
-             |> render_change() =~ "can&#39;t be blank"
-
-      assert {:ok, show_live, _html} =
-               form_live
-               |> form("#email_thread-form", email_thread: @update_attrs)
-               |> render_submit()
-               |> follow_redirect(conn, ~p"/email_threads/#{email_thread}")
-
-      html = render(show_live)
-      assert html =~ "Email thread updated successfully"
-      assert html =~ "some updated name"
+      assert html =~ "Show Thread"
+      assert html =~ email_thread.subject
     end
   end
 end

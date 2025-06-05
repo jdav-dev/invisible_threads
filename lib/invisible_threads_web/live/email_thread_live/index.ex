@@ -8,10 +8,10 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
-        Listing threads
+        Listing Threads
         <:actions>
           <.button variant="primary" navigate={~p"/email_threads/new"}>
-            <.icon name="hero-plus" /> New thread
+            <.icon name="hero-plus" /> New Thread
           </.button>
         </:actions>
       </.header>
@@ -51,7 +51,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
     {:ok,
      socket
-     |> assign(:page_title, "Listing Email threads")
+     |> assign(:page_title, "Listing threads")
      |> stream(:email_threads, Conversations.list_email_threads(socket.assigns.current_scope))}
   end
 
@@ -73,5 +73,12 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
        Conversations.list_email_threads(socket.assigns.current_scope),
        reset: true
      )}
+  end
+
+  if Mix.env() == :test do
+    # Ignore email messages during tests
+    def handle_info({:email, %Swoosh.Email{}}, socket) do
+      {:noreply, socket}
+    end
   end
 end

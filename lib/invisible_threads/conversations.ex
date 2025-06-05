@@ -97,9 +97,6 @@ defmodule InvisibleThreads.Conversations do
       iex> delete_email_thread(email_thread)
       {:ok, %EmailThread{}}
 
-      iex> delete_email_thread(email_thread)
-      {:error, %Ecto.Changeset{}}
-
   """
   def delete_email_thread(%Scope{} = scope, %EmailThread{} = email_thread) do
     with {:ok, _message_id} <-

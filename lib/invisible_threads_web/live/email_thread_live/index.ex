@@ -57,7 +57,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
   @impl Phoenix.LiveView
   def handle_event("delete", %{"id" => id}, socket) do
-    email_thread = Conversations.get_email_thread!(socket.assigns.current_scope, id)
+    email_thread = Conversations.get_email_thread(socket.assigns.current_scope, id)
     {:ok, _} = Conversations.delete_email_thread(socket.assigns.current_scope, email_thread)
 
     {:noreply, stream_delete(socket, :email_threads, email_thread)}

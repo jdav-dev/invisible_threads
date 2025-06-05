@@ -4,7 +4,7 @@ defmodule InvisibleThreads.Conversations.EmailThread do
   import Ecto.Changeset
 
   @primary_key {:id, :binary_id, autogenerate: true}
-  schema "email_threads" do
+  embedded_schema do
     field :subject, :string
     embeds_many :recipients, InvisibleThreads.Conversations.EmailRecipient, on_replace: :delete
     field :first_message_id, :string
@@ -26,10 +26,12 @@ defmodule InvisibleThreads.Conversations.EmailThread do
     |> validate_length(:subject, max: 1000)
     # 50 is the max number of recipients for a single Postmark email
     |> validate_length(:recipients, max: 50)
-    |> unique_constraint(:subject)
   end
 
-  def first_message_id_changeset(email_thread, first_message_id) do
-    change(email_thread, first_message_id: first_message_id)
+  def new(user_scope, attrs) do
+    %__MODULE__{}
+    |> changeset(attrs, user_scope)
+    |> put_change(:id, Ecto.UUID.generate())
+    |> apply_action(:create)
   end
 end

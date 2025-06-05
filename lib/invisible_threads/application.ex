@@ -9,8 +9,6 @@ defmodule InvisibleThreads.Application do
   def start(_type, _args) do
     children = [
       InvisibleThreadsWeb.Telemetry,
-      {Ecto.Migrator,
-       repos: Application.fetch_env!(:invisible_threads, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:invisible_threads, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: InvisibleThreads.PubSub},
       # Start a worker by calling: InvisibleThreads.Worker.start_link(arg)
@@ -31,10 +29,5 @@ defmodule InvisibleThreads.Application do
   def config_change(changed, _new, removed) do
     InvisibleThreadsWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp skip_migrations?() do
-    # By default, sqlite migrations are run when using a release
-    System.get_env("RELEASE_NAME") == nil
   end
 end

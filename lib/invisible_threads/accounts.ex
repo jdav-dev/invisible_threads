@@ -6,9 +6,70 @@ defmodule InvisibleThreads.Accounts do
   import Ecto.Query, warn: false
 
   alias InvisibleThreads.Accounts.User
-  alias InvisibleThreads.Accounts.UserToken
   alias InvisibleThreads.Postmark
-  alias InvisibleThreads.Repo
+
+  @session_validity_in_days 14
+  @session_validity_in_seconds @session_validity_in_days * 24 * 60 * 60
+  @token_salt "K7CMLqwn"
+
+  @doc """
+  Gets a single user.
+
+  Returns `nil` if the User does not exist.
+
+  ## Examples
+
+      iex> get_user(123)
+      %User{}
+
+      iex> get_user(456)
+      nil
+
+  """
+  def get_user(id) do
+    id
+    |> user_file()
+    |> File.read()
+    |> case do
+      {:ok, binary} -> :erlang.binary_to_term(binary)
+      _error -> nil
+    end
+  end
+
+  defp user_file(id) do
+    data_dir =
+      Application.get_env(:invisible_threads, :data_dir, Path.expand("../../data", __DIR__))
+
+    Path.join(data_dir, "#{id}.etf")
+  end
+
+  @doc """
+  Updates a single user.
+
+  ## Examples
+
+      iex> update_user!(user_id, &struct!(&1, name: "new name"))
+      %User{name: "new name"}
+
+  """
+  def update_user!(user_id, update_fun) do
+    user_file = user_file(user_id)
+    user_file |> Path.dirname() |> File.mkdir_p!()
+
+    lock_id = {user_id, self()}
+    :global.set_lock(lock_id)
+
+    user =
+      case File.exists?(user_file) do
+        true -> get_user(user_id)
+        false -> %User{id: user_id}
+      end
+
+    result = update_fun.(user)
+    result |> :erlang.term_to_binary() |> then(&File.write!(user_file, &1))
+    :global.del_lock(lock_id)
+    result
+  end
 
   ## Session
 
@@ -16,26 +77,28 @@ defmodule InvisibleThreads.Accounts do
   Generates a session token.
   """
   def generate_user_session_token(user) do
-    {token, user_token} = UserToken.build_session_token()
+    token_inserted_at = DateTime.utc_now()
 
-    Repo.with_dynamic_repo(user, fn ->
-      Repo.insert!(user_token)
-    end)
-
-    token
+    Phoenix.Token.sign(InvisibleThreadsWeb.Endpoint, @token_salt, {user.id, token_inserted_at},
+      max_age: @session_validity_in_seconds
+    )
   end
 
   @doc """
   Gets the user with the given signed token.
 
-  If the token is valid `token_inserted_at` is returned, otherwise `nil` is returned.
+  If the token is valid `{user, token_inserted_at}` is returned, otherwise `nil` is returned.
   """
-  def verify_session_token(user, token) do
-    {:ok, query} = UserToken.verify_session_token_query(token)
-
-    Repo.with_dynamic_repo(user, fn ->
-      Repo.one(query)
-    end)
+  def get_user_by_session_token(token) do
+    with {:ok, {user_id, token_inserted_at}} <-
+           Phoenix.Token.verify(InvisibleThreadsWeb.Endpoint, @token_salt, token,
+             max_age: @session_validity_in_seconds
+           ),
+         %User{} = user <- get_user(user_id) do
+      {user, token_inserted_at}
+    else
+      _invalid_token -> nil
+    end
   end
 
   @doc """
@@ -46,20 +109,23 @@ defmodule InvisibleThreads.Accounts do
   def login_user_by_server_token(token) do
     with {:ok, %{"ID" => id, "InboundAddress" => inbound_address, "Name" => name}} <-
            Postmark.get_server(token) do
-      user = %User{id: id, server_token: token, inbound_address: inbound_address, name: name}
-      Repo.migrate_user(user)
+      inbound_webhook_password =
+        :crypto.strong_rand_bytes(64) |> Base.url_encode64(padding: false) |> binary_part(0, 64)
+
+      user =
+        update_user!(
+          id,
+          &struct!(&1,
+            server_token: token,
+            inbound_address: inbound_address,
+            name: name,
+            inbound_webhook_password: inbound_webhook_password
+          )
+        )
+
+      # TODO: Offer to set Postmark webhook
+
       {:ok, user}
     end
-  end
-
-  @doc """
-  Deletes the signed token with the given context.
-  """
-  def delete_user_session_token(user, token) do
-    Repo.with_dynamic_repo(user, fn ->
-      Repo.delete_all(UserToken.by_token_and_context_query(token, "session"))
-    end)
-
-    :ok
   end
 end

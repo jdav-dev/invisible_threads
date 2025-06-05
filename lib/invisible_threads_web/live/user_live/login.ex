@@ -9,16 +9,6 @@ defmodule InvisibleThreadsWeb.UserLive.Login do
           <p>Log in with Postmark Server API token</p>
         </.header>
 
-        <div class="alert alert-info">
-          <.icon name="hero-information-circle" class="size-6 shrink-0" />
-          <div>
-            <p>
-              Your token will spend time in server memory, but will only ever be persisted to an
-              encrypted cookie on your machine.
-            </p>
-          </div>
-        </div>
-
         <.form
           :let={f}
           for={@form}

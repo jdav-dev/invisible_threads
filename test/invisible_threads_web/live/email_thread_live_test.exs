@@ -81,7 +81,10 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
     test "deletes email_thread in listing", %{conn: conn, email_thread: email_thread} do
       {:ok, index_live, _html} = live(conn, ~p"/email_threads")
 
-      assert index_live |> element("#email_threads-#{email_thread.id} a", "Delete") |> render_click()
+      assert index_live
+             |> element("#email_threads-#{email_thread.id} a", "Delete")
+             |> render_click()
+
       refute has_element?(index_live, "#email_threads-#{email_thread.id}")
     end
   end

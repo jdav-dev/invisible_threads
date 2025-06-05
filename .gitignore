@@ -35,7 +35,6 @@ invisible_threads-*.tar
 npm-debug.log
 /assets/node_modules/
 
-# Database files
-*.db
-*.db-*
-/databases/
+# Data files
+/data/
+*.etf

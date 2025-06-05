@@ -41,10 +41,13 @@ defmodule InvisibleThreadsWeb.Router do
     end
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", InvisibleThreadsWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", InvisibleThreadsWeb do
+    pipe_through :api
+
+    post "/postmark/inbound_webhook/:user_id/:email_thread_id",
+         PostmarkController,
+         :inbound_webhook
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:invisible_threads, :dev_routes) do

@@ -40,7 +40,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
     {:ok,
      socket
      |> assign(:page_title, "Show Email thread")
-     |> assign(:email_thread, Conversations.get_email_thread!(socket.assigns.current_scope, id))}
+     |> assign(:email_thread, Conversations.get_email_thread(socket.assigns.current_scope, id))}
   end
 
   @impl Phoenix.LiveView

@@ -22,7 +22,8 @@ config :invisible_threads, :scopes,
 
 config :invisible_threads,
   ecto_repos: [InvisibleThreads.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  release: config_env()
 
 # Configures the endpoint
 config :invisible_threads, InvisibleThreadsWeb.Endpoint,
@@ -68,7 +69,7 @@ config :tailwind,
 # Configures Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [:release, :request_id]
 
 # Use built-in JSON for parsing in Phoenix
 config :phoenix, :json_library, JSON

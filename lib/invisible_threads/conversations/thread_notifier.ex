@@ -1,4 +1,8 @@
 defmodule InvisibleThreads.Conversations.ThreadNotifier do
+  @moduledoc """
+  Deliver messages to email threads.
+  """
+
   import Swoosh.Email
 
   alias InvisibleThreads.Mailer
@@ -32,7 +36,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
   defp put_headers(email, nil), do: email
 
   def deliver_introduction(email_thread, inbound_address) do
-    participants = email_thread.recipients |> Enum.map(& &1.name) |> Enum.join("\n- ")
+    participants = Enum.map_join(email_thread.recipients, "\n- ", & &1.name)
 
     new()
     |> from({"Invisible Threads", email_thread.from})

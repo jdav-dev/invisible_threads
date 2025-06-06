@@ -28,18 +28,23 @@ defmodule InvisibleThreads.Accounts do
       nil
 
   """
+  # `user_id` is used in a file name, but any directory structure is first stripped.  We should be
+  # safe from directory traversal.
+  # sobelow_skip ["Traversal.FileModule"]
   def get_user(id) do
     id
     |> user_file()
     |> File.read()
     |> case do
-      {:ok, binary} -> :erlang.binary_to_term(binary)
+      {:ok, binary} -> Plug.Crypto.non_executable_binary_to_term(binary)
       _error -> nil
     end
   end
 
   defp user_file(id) do
-    Path.join(data_dir(), "#{id}.etf")
+    # Strip any directory structure from the ID
+    basename = Path.basename("#{id}.etf")
+    Path.join(data_dir(), basename)
   end
 
   @doc false
@@ -56,9 +61,12 @@ defmodule InvisibleThreads.Accounts do
       %User{name: "new name"}
 
   """
+  # `user_id` is used in a file name, but any directory structure is first stripped.  We should be
+  # safe from directory traversal.
+  # sobelow_skip ["Traversal.FileModule"]
   def update_user!(user_id, update_fun) do
+    File.mkdir_p!(data_dir())
     user_file = user_file(user_id)
-    user_file |> Path.dirname() |> File.mkdir_p!()
 
     lock_id = {user_id, self()}
     :global.set_lock(lock_id)

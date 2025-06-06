@@ -25,10 +25,17 @@ if config_env() == :prod do
     System.get_env("DATA_DIR") ||
       raise """
       environment variable DATA_DIR is missing.
-      For example: /etc/invisible_threads/invisible_threads.db
+      For example: /data
       """
 
-  config :invisible_threads, data_dir: data_dir
+  release =
+    System.get_env("RELEASE") ||
+      raise """
+      environment variable RELEASE is missing.
+      For example: 5a6bc85
+      """
+
+  config :invisible_threads, data_dir: data_dir, release: release
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you

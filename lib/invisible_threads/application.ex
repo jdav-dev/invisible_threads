@@ -5,8 +5,10 @@ defmodule InvisibleThreads.Application do
 
   use Application
 
-  @impl true
+  @impl Application
   def start(_type, _args) do
+    :ok = :logger.update_primary_config(%{metadata: logger_metadata()})
+
     children = [
       InvisibleThreadsWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:invisible_threads, :dns_cluster_query) || :ignore},
@@ -23,9 +25,15 @@ defmodule InvisibleThreads.Application do
     Supervisor.start_link(children, opts)
   end
 
+  defp logger_metadata do
+    %{
+      release: Application.get_env(:invisible_threads, :release)
+    }
+  end
+
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
-  @impl true
+  @impl Application
   def config_change(changed, _new, removed) do
     InvisibleThreadsWeb.Endpoint.config_change(changed, removed)
     :ok

@@ -1,4 +1,8 @@
 defmodule InvisibleThreadsWeb.UserAuth do
+  @moduledoc """
+  Plugs and lifecycle hooks for user sessions.
+  """
+
   use InvisibleThreadsWeb, :verified_routes
 
   import Plug.Conn

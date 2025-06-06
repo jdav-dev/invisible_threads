@@ -73,16 +73,18 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
   defp put_attachments(email, attachments) do
     for %{
           "Name" => file_name,
-          "Content" => data,
+          "Content" => content,
           "ContentType" => content_type,
           "ContentID" => content_id
-        } <- attachments,
+        } <- Enum.reverse(attachments),
         reduce: email do
       acc ->
+        data = Base.decode64!(content)
+
         inline_params =
           case content_id do
-            "cid:" <> cid -> [type: :inline, cid: cid]
-            "" -> []
+            cid when is_binary(cid) and cid != "" -> [type: :inline, cid: cid]
+            _cid -> []
           end
 
         attachment(

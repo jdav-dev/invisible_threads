@@ -12,22 +12,16 @@ defmodule InvisibleThreadsWeb.PostmarkController do
 
   def inbound_webhook(conn, params) do
     case Conversations.forward_inbound_email(conn.assigns.current_scope, params) do
-      :ok ->
-        resp(conn, 200, "")
+      {:ok, message_id} ->
+        json(conn, %{id: message_id})
 
       {:error, :unknown_thread} ->
-        conn
-        |> put_status(403)
-        |> put_view(json: InvisibleThreadsWeb.ErrorJSON)
-        |> render("403.json")
+        # 403 will stop Postmark from retrying
+        send_resp(conn, 403, "Forbidden")
 
       {:error, reason} ->
         Logger.error(["Failed to forward email:\n\tReason: ", inspect(reason)])
-
-        conn
-        |> put_status(500)
-        |> put_view(json: InvisibleThreadsWeb.ErrorJSON)
-        |> render("500.json")
+        send_resp(conn, 500, "Internal Server Error")
     end
   end
 
@@ -44,7 +38,9 @@ defmodule InvisibleThreadsWeb.PostmarkController do
         )
 
       nil ->
-        conn |> put_status(401) |> render("401.json")
+        conn
+        |> send_resp(401, "Unauthorized")
+        |> halt()
     end
   end
 end

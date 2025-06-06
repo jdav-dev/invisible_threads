@@ -4,6 +4,8 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
   import InvisibleThreads.AccountsFixtures
   import InvisibleThreads.ConversationsFixtures
 
+  alias Swoosh.Email.Recipient
+
   describe "POST /postmark/inbound_webhook/:user_id" do
     setup do
       {:ok, scope: user_scope_fixture()}
@@ -13,9 +15,14 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
       email_thread = email_thread_fixture(scope)
       assert_email_sent()
 
+      from_recipient = List.first(email_thread.recipients)
+
       params = %{
         "MailboxHash" => email_thread.id,
-        "FromName" => "some name",
+        "FromFull" => %{
+          "Email" => from_recipient.address,
+          "Name" => from_recipient.name
+        },
         "TextBody" => "some text_body",
         "HtmlBody" => "some html_body",
         "Attachments" => [
@@ -52,7 +59,14 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
                }
 
         assert email.subject == email_thread.subject
-        assert email.from == {"some name", "contact@example.com"}
+        assert email.from == {from_recipient.name, email_thread.from}
+
+        for email_recipient <- email_thread.recipients, email_recipient != from_recipient do
+          assert Recipient.format(email_recipient) in email.bcc
+        end
+
+        refute Recipient.format(from_recipient) in email.bcc
+
         assert email.text_body == "some text_body"
         assert email.html_body == "some html_body"
 

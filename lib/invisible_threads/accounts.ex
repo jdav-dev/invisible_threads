@@ -3,6 +3,8 @@ defmodule InvisibleThreads.Accounts do
   The Accounts context.
   """
 
+  use InvisibleThreadsWeb, :verified_routes
+
   import Ecto.Query, warn: false
 
   alias InvisibleThreads.Accounts.User
@@ -111,26 +113,38 @@ defmodule InvisibleThreads.Accounts do
   """
   def login_user_by_server_token(token) do
     with {:ok, %{"ID" => id, "InboundAddress" => inbound_address, "Name" => name}} <-
-           Postmark.get_server(token) do
-      user =
-        update_user!(
-          id,
-          &struct!(&1,
-            server_token: token,
-            inbound_address: inbound_address,
-            name: name,
-            inbound_webhook_password:
-              &1.inbound_webhook_password || new_inbound_webhook_password()
-          )
-        )
-
-      # TODO: Offer to set Postmark webhook
-
+           Postmark.get_server(token),
+         user <-
+           update_user!(
+             id,
+             &struct!(&1,
+               server_token: token,
+               inbound_address: inbound_address,
+               name: name,
+               inbound_webhook_password:
+                 &1.inbound_webhook_password || new_inbound_webhook_password()
+             )
+           ),
+         :ok <- maybe_update_postmark(token, user) do
       {:ok, user}
     end
   end
 
   defp new_inbound_webhook_password do
     :crypto.strong_rand_bytes(64) |> Base.url_encode64(padding: false) |> binary_part(0, 64)
+  end
+
+  defp maybe_update_postmark(token, user) do
+    case InvisibleThreadsWeb.Endpoint.host() do
+      "localhost" -> :ok
+      _other -> Postmark.set_inbound_hook_url(token, inbound_hook_url(user))
+    end
+  end
+
+  defp inbound_hook_url(user) do
+    url(~p"/api/postmark/inbound_webhook/#{user}")
+    |> URI.new!()
+    |> struct!(userinfo: "postmark:#{user.inbound_webhook_password}")
+    |> to_string()
   end
 end

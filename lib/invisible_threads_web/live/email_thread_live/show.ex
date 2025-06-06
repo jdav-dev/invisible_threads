@@ -8,8 +8,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
-        Email thread {@email_thread.id}
-        <:subtitle>This is a email_thread record from your database.</:subtitle>
+        {@email_thread.subject}
         <:actions>
           <.button navigate={~p"/email_threads"}>
             <.icon name="hero-arrow-left" />
@@ -18,8 +17,9 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
       </.header>
 
       <.list>
-        <:item title="Subject">{@email_thread.subject}</:item>
-        <:item title="Recipients">
+        <:item title="Message Stream">{@email_thread.message_stream}</:item>
+        <:item title="Sender Email Address">{@email_thread.from}</:item>
+        <:item title="Participants">
           <ul>
             <li :for={recipient <- @email_thread.recipients}>
               {recipient.name} &lt;{recipient.address}&gt;

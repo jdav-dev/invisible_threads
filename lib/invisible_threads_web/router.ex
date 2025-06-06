@@ -38,6 +38,7 @@ defmodule InvisibleThreadsWeb.Router do
       live "/email_threads", EmailThreadLive.Index, :index
       live "/email_threads/new", EmailThreadLive.Form, :new
       live "/email_threads/:id", EmailThreadLive.Show, :show
+      live "/email_threads/:id/duplicate", EmailThreadLive.Form, :duplicate
     end
   end
 

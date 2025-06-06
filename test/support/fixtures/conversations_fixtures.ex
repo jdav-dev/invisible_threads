@@ -10,6 +10,8 @@ defmodule InvisibleThreads.ConversationsFixtures do
   def email_thread_fixture(scope, attrs \\ %{}) do
     attrs =
       Enum.into(attrs, %{
+        message_stream: "broadcast",
+        from: "from@example.com",
         subject: "some subject",
         recipients: [
           %{name: "Recipient 1", address: "one@example.com"},

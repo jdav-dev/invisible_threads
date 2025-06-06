@@ -10,6 +10,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
       |> bcc(email_thread.recipients)
       |> subject(email_thread.subject)
       |> put_headers(email_thread.first_message_id)
+      |> put_provider_option(:message_stream, email_thread.message_stream)
       |> put_provider_option(:tag, email_thread.subject)
 
     with {:ok, %{id: message_id}} <- Mailer.deliver(email) do
@@ -34,8 +35,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     participants = email_thread.recipients |> Enum.map(& &1.name) |> Enum.join("\n- ")
 
     new()
-    # TODO: Send from Postmark sender signature
-    |> from({"Invisible Threads", "contact@example.com"})
+    |> from({"Invisible Threads", email_thread.from})
     |> text_body("""
     Hello,
 
@@ -52,8 +52,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
   def deliver_closing(email_thread, inbound_address) do
     new()
-    # TODO: Send from Postmark sender signature
-    |> from({"Invisible Threads", "contact@example.com"})
+    |> from({"Invisible Threads", email_thread.from})
     |> text_body("""
     This invisible thread has been closed.  No further messages will be delivered or shared.
     """)
@@ -61,9 +60,17 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
   end
 
   def forward(email_thread, inbound_address, params) do
+    from_email = String.downcase(params["FromFull"]["Email"])
+
+    email_thread =
+      Map.update!(email_thread, :recipients, fn recipients ->
+        Enum.reject(recipients, fn email_recipient ->
+          String.downcase(email_recipient.address) == from_email
+        end)
+      end)
+
     new()
-    # TODO: Send from Postmark sender signature
-    |> from({params["FromName"], "contact@example.com"})
+    |> from({params["FromFull"]["Name"], email_thread.from})
     |> text_body(params["TextBody"])
     |> html_body(params["HtmlBody"])
     |> put_attachments(params["Attachments"])

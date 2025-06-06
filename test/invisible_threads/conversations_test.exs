@@ -10,7 +10,7 @@ defmodule InvisibleThreads.ConversationsTest do
     alias InvisibleThreads.Conversations.EmailRecipient
     alias InvisibleThreads.Conversations.EmailThread
 
-    @invalid_attrs %{subject: nil, recipients: nil}
+    @invalid_attrs %{message_stream: nil, from: nil, subject: nil, recipients: nil}
 
     test "list_email_threads/1 returns all scoped email_threads" do
       scope = user_scope_fixture()
@@ -31,6 +31,8 @@ defmodule InvisibleThreads.ConversationsTest do
 
     test "create_email_thread/2 with valid data creates a email_thread" do
       valid_attrs = %{
+        message_stream: "broadcast",
+        from: "from@example.com",
         subject: "some subject",
         recipients: [
           %{name: "Recipient 1", address: "one@example.com"},
@@ -43,6 +45,8 @@ defmodule InvisibleThreads.ConversationsTest do
       assert {:ok, %EmailThread{} = email_thread} =
                Conversations.create_email_thread(scope, valid_attrs)
 
+      assert email_thread.message_stream == "broadcast"
+      assert email_thread.from == "from@example.com"
       assert email_thread.subject == "some subject"
       assert is_binary(email_thread.first_message_id)
       assert_email_sent(headers: %{"Message-ID" => email_thread.first_message_id})

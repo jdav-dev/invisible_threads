@@ -10,11 +10,32 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
         {@page_title}
-        <:subtitle>Use this form to manage email_thread records in your database.</:subtitle>
+        <:subtitle>
+          Emails will be sent via the default broadcast stream with id "broadcast".
+        </:subtitle>
       </.header>
 
       <.form for={@form} id="email_thread-form" phx-change="validate" phx-submit="save">
-        <.input field={@form[:subject]} type="text" label="Subject" phx-debounce autocomplete="off" />
+        <.input
+          field={@form[:message_stream]}
+          type="select"
+          label="Message Stream"
+          options={@message_stream_options}
+        />
+        <.input
+          field={@form[:from]}
+          type="email"
+          label="Sender Email Address (must have a registered and confirmed Sender Signature in Postmark)"
+          phx-debounce
+          autocomplete="off"
+        />
+        <.input
+          field={@form[:subject]}
+          type="text"
+          label="Email Thread Subject"
+          phx-debounce
+          autocomplete="off"
+        />
         <.inputs_for :let={rf} field={@form[:recipients]}>
           <input type="hidden" name={"#{@form[:recipients_sort].name}[]"} value={rf.index} />
           <.input field={rf[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
@@ -35,7 +56,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
           value="new"
           phx-click={JS.dispatch("change")}
         >
-          add recipient
+          Add Thread Participant
         </button>
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Thread</.button>
@@ -48,8 +69,17 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
+    message_stream_options =
+      case InvisibleThreads.Postmark.list_broadcast_streams(
+             socket.assigns.current_scope.user.server_token
+           ) do
+        {:ok, options} -> options
+        _error -> ["broadcast"]
+      end
+
     {:ok,
      socket
+     |> assign(:message_stream_options, message_stream_options)
      |> assign(:return_to, return_to(params["return_to"]))
      |> apply_action(socket.assigns.live_action, params)}
   end
@@ -62,6 +92,18 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
 
     socket
     |> assign(:page_title, "New Thread")
+    |> assign(:email_thread, email_thread)
+    |> assign(
+      :form,
+      to_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
+    )
+  end
+
+  defp apply_action(socket, :duplicate, %{"id" => email_thread_id}) do
+    email_thread = Conversations.get_email_thread(socket.assigns.current_scope, email_thread_id)
+
+    socket
+    |> assign(:page_title, "Duplicate Thread")
     |> assign(:email_thread, email_thread)
     |> assign(
       :form,
@@ -85,7 +127,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     save_email_thread(socket, socket.assigns.live_action, email_thread_params)
   end
 
-  defp save_email_thread(socket, :new, email_thread_params) do
+  defp save_email_thread(socket, action, email_thread_params) when action in [:new, :duplicate] do
     case Conversations.create_email_thread(socket.assigns.current_scope, email_thread_params) do
       {:ok, email_thread} ->
         {:noreply,

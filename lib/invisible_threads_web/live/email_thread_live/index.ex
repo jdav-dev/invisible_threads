@@ -22,13 +22,16 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
         row_click={fn {_id, email_thread} -> JS.navigate(~p"/email_threads/#{email_thread}") end}
       >
         <:col :let={{_id, email_thread}} label="Subject">{email_thread.subject}</:col>
-        <:col :let={{_id, email_thread}} label="Recipients">
+        <:col :let={{_id, email_thread}} label="Participants">
           {email_thread.recipients |> Enum.map(& &1.name) |> Enum.join(", ")}
         </:col>
         <:action :let={{_id, email_thread}}>
           <div class="sr-only">
             <.link navigate={~p"/email_threads/#{email_thread}"}>Show</.link>
           </div>
+        </:action>
+        <:action :let={{_id, email_thread}}>
+          <.link navigate={~p"/email_threads/#{email_thread}/duplicate"}>Duplicate</.link>
         </:action>
         <:action :let={{id, email_thread}}>
           <.link

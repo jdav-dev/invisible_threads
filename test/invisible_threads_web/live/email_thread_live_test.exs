@@ -5,6 +5,8 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
   import InvisibleThreads.ConversationsFixtures
 
   @create_attrs %{
+    message_stream: "broadcast",
+    from: "from@example.com",
     subject: "some subject",
     recipients: %{
       "0" => %{name: "Recipient 1", address: "one@example.com"},
@@ -34,7 +36,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
     test "saves new email_thread", %{conn: conn} do
       {:ok, index_live, _html} = live(conn, ~p"/email_threads")
 
-      assert {:ok, form_live, _} =
+      assert {:ok, form_live, _html} =
                index_live
                |> element("a", "New Thread")
                |> render_click()

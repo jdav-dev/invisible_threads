@@ -7,7 +7,7 @@ defmodule InvisibleThreads.Application do
 
   @impl Application
   def start(_type, _args) do
-    :ok = :logger.update_primary_config(%{metadata: %{release: release()}})
+    :ok = :logger.update_primary_config(%{metadata: logger_metadata()})
 
     children = [
       InvisibleThreadsWeb.Telemetry,
@@ -25,8 +25,10 @@ defmodule InvisibleThreads.Application do
     Supervisor.start_link(children, opts)
   end
 
-  defp release do
-    Application.get_env(:invisible_threads, :release)
+  defp logger_metadata do
+    %{
+      release: Application.get_env(:invisible_threads, :release)
+    }
   end
 
   # Tell Phoenix to update the endpoint configuration

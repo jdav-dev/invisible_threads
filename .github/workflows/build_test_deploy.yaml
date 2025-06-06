@@ -72,6 +72,7 @@ jobs:
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     outputs:
       image: ${{ steps.build_docker_image.outputs.image }}
+      release: ${{ steps.build_docker_image.outputs.release }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -88,7 +89,8 @@ jobs:
           docker login -u ${{ github.actor }} -p ${{ github.token }} ghcr.io
 
           image=`echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]'`
-          sha_tag="${image}:${{ github.event.pull_request.head.sha || github.sha }}"
+          release="$(echo ${{ github.event.pull_request.head.sha || github.sha }} | cut -c1-7)"
+          release_tag="${image}:${release}"
           branch=$(echo -n ${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}} | tr -c 'a-zA-Z0-9_.-' '_')
           branch_tag="${image}:${branch}"
 
@@ -106,7 +108,7 @@ jobs:
 
           release="$(echo ${{ github.event.pull_request.head.sha || github.sha }} | cut -c1-7)"
 
-          docker buildx build --push --tag $branch_tag --tag $sha_tag \
+          docker buildx build --push --tag $branch_tag --tag $release_tag \
             --target runner \
             --build-arg RELEASE="$release" \
             --cache-to type=inline \
@@ -117,7 +119,7 @@ jobs:
 
           if [ "${branch}" = "main" ]; then
             latest_tag="${image}:latest"
-            docker tag $sha_tag $latest_tag
+            docker tag $release_tag $latest_tag
             docker push $latest_tag
           fi
 
@@ -128,7 +130,8 @@ jobs:
           docker cp temp-builder-container:/app/priv/static/assets ./priv/static/assets
           docker rm temp-builder-container
 
-          echo "image=${sha_tag}" >> "$GITHUB_OUTPUT"
+          echo "image=${release_tag}" >> "$GITHUB_OUTPUT"
+          echo "release=${release}" >> "$GITHUB_OUTPUT"
 
       - name: Upload assets
         uses: actions/upload-artifact@v4
@@ -151,17 +154,6 @@ jobs:
     defaults:
       run:
         shell: zsh {0}
-    services:
-      postgres:
-        image: postgres:17.2
-        ports: ["5432:5432"]
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 10s
-          --health-retries 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

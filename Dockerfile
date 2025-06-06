@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2 \
     inotify-tools \
     openssh-client \
+    python3 \
     sudo \
     watchman \
     zsh \
@@ -117,7 +118,7 @@ RUN mix release
 
 # start a new build stage so that the final image will only contain
 # the compiled release and other runtime necessities
-FROM ${RUNNER_IMAGE} AS final
+FROM ${RUNNER_IMAGE} AS runner
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses5 locales ca-certificates \
@@ -127,15 +128,18 @@ RUN apt-get update \
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen
 
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
-
 WORKDIR "/app"
 RUN chown nobody /app
 
-# set runner ENV
-ENV MIX_ENV="prod"
+ARG RELEASE
+RUN test -n "$RELEASE" || (echo "RELEASE is required." && exit 1)
+
+# Set runner ENV
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8 \
+    MIX_ENV="prod" \
+    RELEASE=$RELEASE
 
 # Only copy the final release from the build stage
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/invisible_threads ./

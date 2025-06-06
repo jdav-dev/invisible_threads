@@ -5,10 +5,12 @@ defmodule InvisibleThreads.MixProject do
     [
       app: :invisible_threads,
       version: "0.1.0",
-      elixir: "~> 1.15",
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
+      dialyzer: [plt_add_apps: [:ex_unit]],
+      preferred_cli_env: [credo: :test, dialyzer: :test],
       deps: deps(),
       listeners: [Phoenix.CodeReloader]
     ]

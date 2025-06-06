@@ -9,8 +9,9 @@ defmodule InvisibleThreadsWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {InvisibleThreadsWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug :put_secure_browser_headers, %{"content-security-policy" => "default-src 'self'"}
     plug :fetch_current_scope_for_user
+    plug :put_csp
   end
 
   pipeline :api do
@@ -60,8 +61,44 @@ defmodule InvisibleThreadsWeb.Router do
     scope "/dev" do
       pipe_through :browser
 
-      live_dashboard "/dashboard", metrics: InvisibleThreadsWeb.Telemetry
+      live_dashboard "/dashboard",
+        allow_destructive_actions: true,
+        csp_nonce_assign_key: %{
+          img: :img_csp_nonce,
+          style: :style_csp_nonce,
+          script: :script_csp_nonce
+        },
+        env_keys: [],
+        home_app: {"Invisible Threads", :invisible_threads},
+        metrics: InvisibleThreadsWeb.Telemetry
+
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  def put_csp(conn, _opts) do
+    [img_nonce, style_nonce, script_nonce] =
+      for _i <- 1..3 do
+        16
+        |> :crypto.strong_rand_bytes()
+        |> Base.url_encode64(padding: false)
+      end
+
+    conn
+    |> assign(:img_csp_nonce, img_nonce)
+    |> assign(:style_csp_nonce, style_nonce)
+    |> assign(:script_csp_nonce, script_nonce)
+    |> put_secure_browser_headers(%{
+      "content-security-policy" =>
+        "default-src; " <>
+          "script-src 'nonce-#{script_nonce}' 'self'; " <>
+          "style-src-elem 'nonce-#{style_nonce}' 'self'; " <>
+          "img-src 'nonce-#{img_nonce}' data: 'self'; " <>
+          "font-src data: ; " <>
+          "connect-src 'self'; " <>
+          "frame-src 'self' ; " <>
+          "base-uri 'self'; " <>
+          "frame-ancestors 'self';"
+    })
   end
 end

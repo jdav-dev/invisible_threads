@@ -1,4 +1,8 @@
 defmodule InvisibleThreads.Conversations.EmailThread do
+  @moduledoc """
+  `EmailThread` holds the information to send messages to an invisible email thread.
+  """
+
   use Ecto.Schema
 
   import Ecto.Changeset

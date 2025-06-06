@@ -1,4 +1,8 @@
 defmodule InvisibleThreads.Conversations.EmailRecipient do
+  @moduledoc """
+  Participant in an invisible email thread.
+  """
+
   use Ecto.Schema
 
   import Ecto.Changeset

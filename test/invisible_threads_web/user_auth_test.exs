@@ -1,10 +1,10 @@
 defmodule InvisibleThreadsWeb.UserAuthTest do
   use InvisibleThreadsWeb.ConnCase, async: true
 
-  alias Phoenix.LiveView
   alias InvisibleThreads.Accounts
   alias InvisibleThreads.Accounts.Scope
   alias InvisibleThreadsWeb.UserAuth
+  alias Phoenix.LiveView
 
   import InvisibleThreads.AccountsFixtures
 

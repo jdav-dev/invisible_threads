@@ -2,6 +2,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
   use InvisibleThreadsWeb, :live_view
 
   alias InvisibleThreads.Conversations
+  alias InvisibleThreads.Conversations.EmailRecipient
   alias InvisibleThreads.Conversations.EmailThread
 
   @impl Phoenix.LiveView
@@ -42,9 +43,11 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
           <.input field={rf[:address]} type="email" label="Address" phx-debounce autocomplete="off" />
           <button
             type="button"
+            class="btn"
             name={"#{@form[:recipients_drop].name}[]"}
             value={rf.index}
             phx-click={JS.dispatch("change")}
+            disabled={@disable_remove_participant?}
           >
             <.icon name="hero-x-mark" class="w-6 h-6 relative top-2" />
           </button>
@@ -52,6 +55,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
         <input type="hidden" name={"#{@form.name}[recipients_drop][]"} />
         <button
           type="button"
+          class="btn"
           name={"#{@form.name}[recipients_sort][]"}
           value="new"
           phx-click={JS.dispatch("change")}
@@ -88,15 +92,12 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
   defp return_to(_), do: "index"
 
   defp apply_action(socket, :new, _params) do
-    email_thread = %EmailThread{}
+    email_thread = %EmailThread{recipients: [%EmailRecipient{}, %EmailRecipient{}]}
 
     socket
     |> assign(:page_title, "New Thread")
     |> assign(:email_thread, email_thread)
-    |> assign(
-      :form,
-      to_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
-    )
+    |> assign_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
   end
 
   defp apply_action(socket, :duplicate, %{"id" => email_thread_id}) do
@@ -105,10 +106,26 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     socket
     |> assign(:page_title, "Duplicate Thread")
     |> assign(:email_thread, email_thread)
-    |> assign(
-      :form,
-      to_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
-    )
+    |> assign_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
+  end
+
+  defp assign_form(socket, changeset, opts \\ []) do
+    form = to_form(changeset, opts)
+
+    num_participants =
+      Enum.count_until(
+        form[:recipients].value,
+        fn
+          %EmailRecipient{} -> true
+          %Ecto.Changeset{action: action} when action in [:insert, :update] -> true
+          _other -> false
+        end,
+        3
+      )
+
+    socket
+    |> assign(:form, form)
+    |> assign(:disable_remove_participant?, num_participants <= 2)
   end
 
   @impl Phoenix.LiveView
@@ -120,7 +137,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
         email_thread_params
       )
 
-    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
+    {:noreply, assign_form(socket, changeset, action: :validate)}
   end
 
   def handle_event("save", %{"email_thread" => email_thread_params}, socket) do
@@ -138,7 +155,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
          )}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, form: to_form(changeset))}
+        {:noreply, assign_form(socket, changeset)}
     end
   end
 

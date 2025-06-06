@@ -1,4 +1,8 @@
 defmodule InvisibleThreads.Accounts.User do
+  @moduledoc """
+  A user of the application.
+  """
+
   use Ecto.Schema
 
   embedded_schema do

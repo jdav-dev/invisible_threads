@@ -1,0 +1,272 @@
+name: Build, test, and deploy
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  MIX_ENV: test
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  report_mix_deps:
+    name: "Report Mix dependencies"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/mix-dependency-submission@v1
+
+  build_devcontainer:
+    name: Build devcontainer
+    runs-on: ubuntu-latest
+    concurrency:
+      group: build_devcontainer/${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    outputs:
+      image: ${{ steps.build_docker_image.outputs.image }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Restore file modification timestamps
+        uses: chetan/git-restore-mtime-action@v2
+
+      - id: build_docker_image
+        name: Build the Docker image
+        run: |
+          docker login -u ${{ github.actor }} -p ${{ github.token }} ghcr.io
+
+          image=`echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]'`
+          branch=$(echo -n ${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}} | tr -c 'a-zA-Z0-9_.-' '_')
+          branch_tag="${image}:${branch}"
+
+          devcontainer_tag="${branch_tag}_devcontainer"
+          main_devcontainer_tag="${image}:main_devcontainer"
+
+          docker buildx build --push --tag $devcontainer_tag \
+            --target devcontainer \
+            --build-arg USERNAME=runner \
+            --build-arg USER_UID=1001 \
+            --build-arg USER_GID=1001 \
+            --cache-to type=inline \
+            --cache-from $main_devcontainer_tag \
+            --cache-from $devcontainer_tag \
+            .
+
+          echo "image=${devcontainer_tag}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: build/${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    outputs:
+      image: ${{ steps.build_docker_image.outputs.image }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Restore file modification timestamps
+        uses: chetan/git-restore-mtime-action@v2
+
+      - id: build_docker_image
+        name: Build the Docker image
+        run: |
+          docker login -u ${{ github.actor }} -p ${{ github.token }} ghcr.io
+
+          image=`echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]'`
+          sha_tag="${image}:${{ github.event.pull_request.head.sha || github.sha }}"
+          branch=$(echo -n ${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}} | tr -c 'a-zA-Z0-9_.-' '_')
+          branch_tag="${image}:${branch}"
+
+          builder_tag="${branch_tag}_builder"
+          main_builder_tag="${image}:main_builder"
+
+          main_tag="${image}:main"
+
+          docker buildx build --push --tag $builder_tag \
+            --target builder \
+            --cache-to type=inline \
+            ${{ github.run_attempt == '1' && '--cache-from $main_builder_tag' || '' }} \
+            ${{ github.run_attempt == '1' && '--cache-from $builder_tag' || '' }} \
+            .
+
+          release="$(echo ${{ github.event.pull_request.head.sha || github.sha }} | cut -c1-7)"
+
+          docker buildx build --push --tag $branch_tag --tag $sha_tag \
+            --target runner \
+            --build-arg RELEASE="$release" \
+            --cache-to type=inline \
+            --cache-from $builder_tag \
+            --cache-from $main_tag \
+            --cache-from $branch_tag \
+            .
+
+          if [ "${branch}" = "main" ]; then
+            latest_tag="${image}:latest"
+            docker tag $sha_tag $latest_tag
+            docker push $latest_tag
+          fi
+
+          echo "builder_image=${builder_tag}" >> "$GITHUB_OUTPUT"
+
+          # Copy the compiled assets out of the builder for Sentry
+          docker create --name temp-builder-container $builder_tag
+          docker cp temp-builder-container:/app/priv/static/assets ./priv/static/assets
+          docker rm temp-builder-container
+
+          echo "image=${sha_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: assets
+          path: ./priv/static/assets
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build_devcontainer
+    concurrency:
+      group: test/${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    container:
+      image: ${{ needs.build_devcontainer.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    defaults:
+      run:
+        shell: zsh {0}
+    services:
+      postgres:
+        image: postgres:17.2
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Restore file modification timestamps
+        uses: chetan/git-restore-mtime-action@v2
+
+      - name: Cache deps
+        id: cache-deps
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-elixir-deps
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ env.cache-name }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ env.cache-name }}-
+
+      - name: Cache compiled build
+        id: cache-build
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-compiled-build
+        with:
+          path: _build
+          key: ${{ runner.os }}-mix-${{ env.cache-name }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ env.cache-name }}-
+            ${{ runner.os }}-mix-
+
+      - name: Clean to rule out incremental build as a source of flakiness
+        if: github.run_attempt != '1'
+        run: |
+          mix deps.clean --all
+          mix clean
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compiles without warnings
+        run: mix compile --warnings-as-errors
+
+      - name: Check Formatting
+        run: mix format --check-formatted
+
+      - name: Check for retired dependencies
+        run: mix hex.audit
+
+      - name: Check for unused dependencies
+        run: mix deps.unlock --check-unused
+
+      - name: Scan Mix dependencies for security vulnerabilities
+        run: mix deps.audit
+
+      - name: Run Credo
+        run: mix credo
+
+      - name: Run Sobelow
+        run: mix sobelow --config
+
+      - name: Run tests
+        run: mix test
+
+      - name: Run Dialyzer
+        run: mix dialyzer
+
+  deploy:
+    name: Deploy
+    if: github.ref == 'refs/heads/main'
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Restore file modification timestamps
+        uses: chetan/git-restore-mtime-action@v2
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Authenticate with GitHub's container registry
+        run: docker login -u ${{ github.actor }} -p ${{ github.token }} ghcr.io
+
+      - name: Authenticate with Fly's container registry
+        run: flyctl auth docker
+
+      - name: Pull runner image
+        run: docker pull ${{ needs.build.outputs.image }}
+
+      - name: Deploy to Fly
+        run: |
+          app=$(grep '^app\s*=' fly.toml | head -n1 | sed -E 's/^app\s*=\s*"(.*)".*/\1/')
+          image="registry.fly.io/${app}"
+          sha_tag="${image}:${{ github.event.pull_request.head.sha || github.sha }}"
+
+          docker tag ${{ needs.build.outputs.image }} $sha_tag
+          docker push $sha_tag
+
+          flyctl deploy --image $sha_tag

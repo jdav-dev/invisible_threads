@@ -243,7 +243,7 @@ defmodule InvisibleThreadsWeb.UserAuth do
   end
 
   @doc "Returns the path to redirect to after log in."
-  def signed_in_path(_conn), do: ~p"/email_threads"
+  def signed_in_path(_conn), do: ~p"/threads"
 
   @doc """
   Plug for routes that require the user to be authenticated.

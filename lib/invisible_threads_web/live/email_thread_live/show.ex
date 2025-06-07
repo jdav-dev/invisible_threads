@@ -10,7 +10,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
       <.header>
         {@email_thread.subject}
         <:actions>
-          <.button navigate={~p"/email_threads"}>
+          <.button navigate={~p"/threads"}>
             <.icon name="hero-arrow-left" />
           </.button>
         </:actions>
@@ -51,7 +51,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
     {:noreply,
      socket
      |> put_flash(:error, "The current email_thread was deleted.")
-     |> push_navigate(to: ~p"/email_threads")}
+     |> push_navigate(to: ~p"/threads")}
   end
 
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)

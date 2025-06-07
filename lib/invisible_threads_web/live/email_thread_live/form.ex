@@ -159,6 +159,6 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     end
   end
 
-  defp return_path(_scope, "index", _email_thread), do: ~p"/email_threads"
-  defp return_path(_scope, "show", email_thread), do: ~p"/email_threads/#{email_thread}"
+  defp return_path(_scope, "index", _email_thread), do: ~p"/threads"
+  defp return_path(_scope, "show", email_thread), do: ~p"/threads/#{email_thread}"
 end

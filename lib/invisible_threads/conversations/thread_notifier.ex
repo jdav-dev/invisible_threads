@@ -74,7 +74,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     new()
     |> from({unsubscribed_recipient.name, email_thread.from})
     |> text_body("""
-    #{unsubscribed_recipient.name} has unsubscribed from this thread.
+    #{unsubscribed_recipient.name} has unsubscribed from this invisible thread.
     """)
     |> deliver(email_thread, user)
   end
@@ -89,6 +89,8 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
   end
 
   def forward(email_thread, from_recipient, user, params) do
+    params = sanitize(params, email_thread)
+
     email_thread =
       Map.update!(email_thread, :recipients, fn recipients ->
         Enum.reject(recipients, &(&1.id == from_recipient.id))
@@ -100,6 +102,17 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     |> html_body(params["HtmlBody"])
     |> put_attachments(params["Attachments"])
     |> deliver(email_thread, user)
+  end
+
+  defp sanitize(params, email_thread) do
+    regex =
+      email_thread.recipients
+      |> Enum.map_join("|", &Regex.escape(&1.address))
+      |> Regex.compile!([:caseless])
+
+    for key <- ["TextBody", "HtmlBody"], reduce: params do
+      acc -> Map.replace_lazy(acc, key, &Regex.replace(regex, &1, "████████"))
+    end
   end
 
   defp put_attachments(email, attachments) do

@@ -36,10 +36,10 @@ defmodule InvisibleThreadsWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{InvisibleThreadsWeb.UserAuth, :require_authenticated}] do
-      live "/email_threads", EmailThreadLive.Index, :index
-      live "/email_threads/new", EmailThreadLive.Form, :new
-      live "/email_threads/:id", EmailThreadLive.Show, :show
-      live "/email_threads/:id/duplicate", EmailThreadLive.Form, :duplicate
+      live "/threads", EmailThreadLive.Index, :index
+      live "/threads/new", EmailThreadLive.Form, :new
+      live "/threads/:id", EmailThreadLive.Show, :show
+      live "/threads/:id/duplicate", EmailThreadLive.Form, :duplicate
     end
   end
 

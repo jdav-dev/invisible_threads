@@ -20,8 +20,10 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
 
       params = %{
         "MailboxHash" => "#{email_thread.id}_#{from_recipient.id}",
-        "TextBody" => "some text_body",
-        "HtmlBody" => "some html_body",
+        "TextBody" =>
+          "some text_body <#{String.upcase(from_recipient.address)}> <#{to_recipient.address}>",
+        "HtmlBody" =>
+          "some html_body <#{from_recipient.address}> <#{String.downcase(to_recipient.address)}>",
         "Attachments" => [
           %{
             "Name" => "one.txt",
@@ -63,8 +65,8 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
       assert email.to == [Recipient.format(to_recipient)]
       assert email.subject == email_thread.subject
 
-      assert email.text_body == "some text_body"
-      assert email.html_body == "some html_body"
+      assert email.text_body == "some text_body <████████> <████████>"
+      assert email.html_body == "some html_body <████████> <████████>"
 
       assert email.attachments == [
                %Swoosh.Attachment{
@@ -153,12 +155,12 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
         %{
           to: [Recipient.format(two)],
           subject: email_thread.subject,
-          text_body: "Recipient 1 has unsubscribed from this thread.\n"
+          text_body: "Recipient 1 has unsubscribed from this invisible thread.\n"
         },
         %{
           to: [Recipient.format(three)],
           subject: email_thread.subject,
-          text_body: "Recipient 1 has unsubscribed from this thread.\n"
+          text_body: "Recipient 1 has unsubscribed from this invisible thread.\n"
         }
       ])
     end

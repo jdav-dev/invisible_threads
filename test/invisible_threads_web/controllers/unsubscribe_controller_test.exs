@@ -36,12 +36,12 @@ defmodule InvisibleThreadsWeb.UnsubscribeControllerTest do
         %{
           to: [Recipient.format(two)],
           subject: email_thread.subject,
-          text_body: "Recipient 1 has unsubscribed from this thread.\n"
+          text_body: "Recipient 1 has unsubscribed from this invisible thread.\n"
         },
         %{
           to: [Recipient.format(three)],
           subject: email_thread.subject,
-          text_body: "Recipient 1 has unsubscribed from this thread.\n"
+          text_body: "Recipient 1 has unsubscribed from this invisible thread.\n"
         }
       ])
     end

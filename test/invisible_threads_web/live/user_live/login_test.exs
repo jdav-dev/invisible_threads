@@ -24,7 +24,7 @@ defmodule InvisibleThreadsWeb.UserLive.LoginTest do
 
       conn = submit_form(form, conn)
 
-      assert redirected_to(conn) == ~p"/email_threads"
+      assert redirected_to(conn) == ~p"/threads"
     end
 
     test "redirects to login page with a flash error if credentials are invalid", %{

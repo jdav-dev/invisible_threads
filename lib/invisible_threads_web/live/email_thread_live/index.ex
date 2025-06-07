@@ -10,7 +10,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
       <.header>
         Listing Threads
         <:actions>
-          <.button variant="primary" navigate={~p"/email_threads/new"}>
+          <.button variant="primary" navigate={~p"/threads/new"}>
             <.icon name="hero-plus" /> New Thread
           </.button>
         </:actions>
@@ -19,7 +19,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
       <.table
         id="email_threads"
         rows={@streams.email_threads}
-        row_click={fn {_id, email_thread} -> JS.navigate(~p"/email_threads/#{email_thread}") end}
+        row_click={fn {_id, email_thread} -> JS.navigate(~p"/threads/#{email_thread}") end}
       >
         <:col :let={{_id, email_thread}} label="Subject">{email_thread.subject}</:col>
         <:col :let={{_id, email_thread}} label="Participants">
@@ -27,11 +27,11 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
         </:col>
         <:action :let={{_id, email_thread}}>
           <div class="sr-only">
-            <.link navigate={~p"/email_threads/#{email_thread}"}>Show</.link>
+            <.link navigate={~p"/threads/#{email_thread}"}>Show</.link>
           </div>
         </:action>
         <:action :let={{_id, email_thread}}>
-          <.link navigate={~p"/email_threads/#{email_thread}/duplicate"}>Duplicate</.link>
+          <.link navigate={~p"/threads/#{email_thread}/duplicate"}>Duplicate</.link>
         </:action>
         <:action :let={{id, email_thread}}>
           <.link

@@ -27,20 +27,20 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
     setup [:create_email_thread]
 
     test "lists all email_threads", %{conn: conn, email_thread: email_thread} do
-      {:ok, _index_live, html} = live(conn, ~p"/email_threads")
+      {:ok, _index_live, html} = live(conn, ~p"/threads")
 
       assert html =~ "Listing Threads"
       assert html =~ email_thread.subject
     end
 
     test "saves new email_thread", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/email_threads")
+      {:ok, index_live, _html} = live(conn, ~p"/threads")
 
       assert {:ok, form_live, _html} =
                index_live
                |> element("a", "New Thread")
                |> render_click()
-               |> follow_redirect(conn, ~p"/email_threads/new")
+               |> follow_redirect(conn, ~p"/threads/new")
 
       assert render(form_live) =~ "New Thread"
 
@@ -55,7 +55,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
                form_live
                |> form("#email_thread-form", email_thread: @create_attrs)
                |> render_submit()
-               |> follow_redirect(conn, ~p"/email_threads")
+               |> follow_redirect(conn, ~p"/threads")
 
       html = render(index_live)
       assert html =~ "Thread created successfully"
@@ -63,7 +63,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
     end
 
     test "deletes email_thread in listing", %{conn: conn, email_thread: email_thread} do
-      {:ok, index_live, _html} = live(conn, ~p"/email_threads")
+      {:ok, index_live, _html} = live(conn, ~p"/threads")
 
       assert index_live
              |> element("#email_threads-#{email_thread.id} a", "Delete")
@@ -77,7 +77,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
     setup [:create_email_thread]
 
     test "displays email_thread", %{conn: conn, email_thread: email_thread} do
-      {:ok, _show_live, html} = live(conn, ~p"/email_threads/#{email_thread}")
+      {:ok, _show_live, html} = live(conn, ~p"/threads/#{email_thread}")
 
       assert html =~ "Show Thread"
       assert html =~ email_thread.subject

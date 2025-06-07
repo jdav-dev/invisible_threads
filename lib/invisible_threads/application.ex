@@ -27,7 +27,7 @@ defmodule InvisibleThreads.Application do
 
   defp logger_metadata do
     %{
-      release: Application.get_env(:invisible_threads, :release)
+      release: InvisibleThreads.release()
     }
   end
 

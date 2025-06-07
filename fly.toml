@@ -11,7 +11,7 @@ kill_signal = 'SIGTERM'
 
 [env]
 DATA_DIR = '/data'
-PHX_HOST = 'invisiblethreads.fly.dev'
+PHX_HOST = 'invisiblethreads.jdav.dev'
 PORT = '8080'
 
 [http_service]

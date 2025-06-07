@@ -29,9 +29,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
         |> put_unsubscribe_headers(user, email_thread, recipient, recipient_reply_to)
       end
 
-    with {:ok, metadatas} <- Mailer.deliver_many(emails, api_key: user.server_token) do
-      {:ok, metadatas}
-    end
+    Mailer.deliver_many(emails, api_key: user.server_token)
   end
 
   defp put_in_reply_headers(email, in_reply_to) when is_binary(in_reply_to) do

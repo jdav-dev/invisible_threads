@@ -258,7 +258,7 @@ jobs:
       - id: push_image_to_fly
         name: Push image to Fly
         run: |
-          app=$(grep '^app\s*=' fly.toml | head -n1 | sed -E 's/^app\s*=\s*"(.*)".*/\1/')
+          app=$(grep '^app\s*=' fly.toml | head -n1 | sed -E "s/^app\s*=\s*'(.*)'.*/\1/")
           image="registry.fly.io/${app}:${{ needs.build.outputs.release }}"
 
           docker tag "${{ needs.build.outputs.image }}" "${image}"

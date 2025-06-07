@@ -11,9 +11,13 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
         {@page_title}
-        <:subtitle>
-          Emails will be sent via the default broadcast stream with id "broadcast".
-        </:subtitle>
+        <:actions>
+          <div class="flex flex-col sm:flex-row gap-4 place-content-between">
+            <.button navigate={~p"/threads"}>
+              <.icon name="hero-arrow-left" /> All Threads
+            </.button>
+          </div>
+        </:actions>
       </.header>
 
       <.form for={@form} id="email_thread-form" phx-change="validate" phx-submit="save">

@@ -9,10 +9,23 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
         Listing Threads
+        <:subtitle><span title="Postmark Server Name">{@current_scope.user.name}</span></:subtitle>
         <:actions>
-          <.button variant="primary" navigate={~p"/threads/new"}>
-            <.icon name="hero-plus" /> New Thread
-          </.button>
+          <div class="flex flex-col sm:flex-row gap-4 place-content-between">
+            <div class="flex flex-col sm:flex-row gap-4">
+              <.button type="button">
+                <.icon name="hero-trash" /> Delete my data
+              </.button>
+              <.button type="button">
+                <.icon name="hero-arrow-down-tray" /> Download my data
+              </.button>
+            </div>
+            <div class="flex">
+              <.link class="btn btn-primary w-full" navigate={~p"/threads/new"}>
+                <.icon name="hero-plus" /> New Thread
+              </.link>
+            </div>
+          </div>
         </:actions>
       </.header>
 
@@ -23,7 +36,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
       >
         <:col :let={{_id, email_thread}} label="Subject">{email_thread.subject}</:col>
         <:col :let={{_id, email_thread}} label="Participants">
-          {email_thread.recipients |> Enum.map(& &1.name) |> Enum.join(", ")}
+          {format_participants(email_thread)}
         </:col>
         <:action :let={{_id, email_thread}}>
           <div class="sr-only">
@@ -46,6 +59,12 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
     """
   end
 
+  defp format_participants(email_thread) do
+    email_thread.recipients
+    |> Enum.reject(& &1.unsubscribed?)
+    |> Enum.map_join(", ", & &1.name)
+  end
+
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -54,7 +73,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
     {:ok,
      socket
-     |> assign(:page_title, "Listing threads")
+     |> assign(:page_title, "Listing Threads")
      |> stream(:email_threads, Conversations.list_email_threads(socket.assigns.current_scope))}
   end
 
@@ -66,7 +85,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
   @impl Phoenix.LiveView
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)
-      when type in [:created, :closed, :deleted] do
+      when type in [:created, :updated, :deleted] do
     {:noreply,
      stream(
        socket,

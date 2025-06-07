@@ -285,7 +285,11 @@ defmodule InvisibleThreadsWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4", @class]}>
+    <header class={[
+      @actions != [] && "flex flex-col items-center justify-between gap-6",
+      "pb-4 text-center",
+      @class
+    ]}>
       <div>
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
@@ -294,7 +298,7 @@ defmodule InvisibleThreadsWeb.CoreComponents do
           {render_slot(@subtitle)}
         </p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div class="w-full">{render_slot(@actions)}</div>
     </header>
     """
   end

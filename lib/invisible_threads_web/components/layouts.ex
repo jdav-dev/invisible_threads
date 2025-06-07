@@ -43,16 +43,7 @@ defmodule InvisibleThreadsWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li :if={@current_scope} title="Postmark Server Name">
-            <small class="badge badge-secondary badge-sm ml-3">{@current_scope.user.name}</small>
-          </li>
-          <li :if={@current_scope}>
-            <.link navigate="#" class="btn btn-ghost">Download my data</.link>
-          </li>
-          <li :if={@current_scope}>
-            <.link navigate="#" class="btn btn-ghost">Delete my data</.link>
-          </li>
-          <li>
+          <li class="hidden sm:list-item">
             <.theme_toggle />
           </li>
           <li :if={@current_scope}>

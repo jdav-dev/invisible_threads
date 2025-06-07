@@ -18,7 +18,7 @@ defmodule InvisibleThreads.Conversations do
   The broadcasted messages match the pattern:
 
     * {:created, %EmailThread{}}
-    * {:closed, %EmailThread{}}
+    * {:updated, %EmailThread{}}
     * {:deleted, %EmailThread{}}
 
   """
@@ -117,7 +117,7 @@ defmodule InvisibleThreads.Conversations do
          {:ok, _metadatas} <- ThreadNotifier.deliver_closing(email_thread, scope.user) do
       Accounts.update_user!(scope.user.id, &do_close_email_thread(&1, email_thread_id))
       updated_email_thread = struct!(email_thread, closed?: true)
-      broadcast(scope, {:closed, updated_email_thread})
+      broadcast(scope, {:updated, updated_email_thread})
       {:ok, updated_email_thread}
     else
       %EmailThread{closed?: true} = email_thread -> {:ok, email_thread}
@@ -210,12 +210,11 @@ defmodule InvisibleThreads.Conversations do
       updated_user =
         Accounts.update_user!(user_id, &unsubscribe_recipient(&1, email_thread_id, recipient_id))
 
+      scope = Scope.for_user(updated_user)
       updated_email_thread = Enum.find(updated_user.email_threads, &(&1.id == email_thread_id))
 
       if Enum.count_until(updated_email_thread.recipients, &(!&1.unsubscribed?), 2) < 2 do
-        updated_user
-        |> Scope.for_user()
-        |> close_email_thread(updated_email_thread.id)
+        close_email_thread(scope, updated_email_thread.id)
       else
         original_email_thread =
           Enum.find(original_user.email_threads, &(&1.id == email_thread_id))
@@ -229,6 +228,8 @@ defmodule InvisibleThreads.Conversations do
             updated_user,
             unsubscribed_recipient
           )
+
+        broadcast(scope, {:updated, updated_email_thread})
       end
     end
 

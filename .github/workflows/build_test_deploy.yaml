@@ -230,6 +230,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    environment:
+      name: fly
+      url: https://invisiblethreads.fly.dev
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -250,15 +253,18 @@ jobs:
         run: flyctl auth docker
 
       - name: Pull runner image
-        run: docker pull ${{ needs.build.outputs.image }}
+        run: docker pull "${{ needs.build.outputs.image }}"
 
-      - name: Deploy to Fly
+      - id: push_image_to_fly
+        name: Push image to Fly
         run: |
           app=$(grep '^app\s*=' fly.toml | head -n1 | sed -E 's/^app\s*=\s*"(.*)".*/\1/')
-          image="registry.fly.io/${app}"
-          sha_tag="${image}:${{ github.event.pull_request.head.sha || github.sha }}"
+          image="registry.fly.io/${app}:${{ needs.build.outputs.release }}"
 
-          docker tag ${{ needs.build.outputs.image }} $sha_tag
-          docker push $sha_tag
+          docker tag "${{ needs.build.outputs.image }}" "${image}"
+          docker push "${image}"
 
-          flyctl deploy --image $sha_tag
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Fly
+        run: flyctl deploy --image "${{ steps.push_image_to_fly.outputs.image }}"

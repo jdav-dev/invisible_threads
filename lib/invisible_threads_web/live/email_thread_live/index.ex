@@ -13,17 +13,20 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
         <:actions>
           <div class="flex flex-col sm:flex-row gap-4 place-content-between">
             <div class="flex flex-col sm:flex-row gap-4">
-              <.button type="button">
-                <.icon name="hero-trash" /> Delete my data
-              </.button>
-
-              <.link href={~p"/users/delete-my-data"} class="btn btn-primary btn-soft" target="_blank">
+              <.link
+                href={~p"/users/delete-my-data"}
+                class="btn btn-primary btn-soft"
+                method="delete"
+                title="Delete your data from Invisible Threads."
+                data-confirm="This will delete all of your data from Invisible Threads and unset the inbound webhook on your Postmark server."
+              >
                 <.icon name="hero-trash" /> Delete my data
               </.link>
               <.link
                 href={~p"/users/download-my-data"}
                 class="btn btn-primary btn-soft"
                 target="_blank"
+                title="See everything Invisible Threads stores about you."
               >
                 <.icon name="hero-arrow-top-right-on-square" /> Download my data
               </.link>

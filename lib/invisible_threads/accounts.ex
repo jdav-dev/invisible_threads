@@ -68,7 +68,7 @@ defmodule InvisibleThreads.Accounts do
     File.mkdir_p!(data_dir())
     user_file = user_file(user_id)
 
-    lock_id = {user_id, self()}
+    lock_id = user_lock_id(user_id)
     :global.set_lock(lock_id)
 
     user =
@@ -81,6 +81,32 @@ defmodule InvisibleThreads.Accounts do
     result |> :erlang.term_to_binary() |> then(&File.write!(user_file, &1))
     :global.del_lock(lock_id)
     result
+  end
+
+  defp user_lock_id(user_id) when is_integer(user_id) or is_binary(user_id) do
+    {user_id, self()}
+  end
+
+  @doc """
+  Deletes a single user.
+
+  ## Examples
+
+      iex> delete_user!(user)
+      :ok
+
+  """
+  # `user_id` is used in a file name, but any directory structure is first stripped.  We should be
+  # safe from directory traversal.
+  # sobelow_skip ["Traversal.FileModule"]
+  def delete_user!(user) do
+    user_file = user_file(user.id)
+    lock_id = user_lock_id(user.id)
+    :global.set_lock(lock_id)
+    File.rm!(user_file)
+    :global.del_lock(lock_id)
+    Postmark.set_inbound_hook_url(user.server_token, "")
+    :ok
   end
 
   ## Session

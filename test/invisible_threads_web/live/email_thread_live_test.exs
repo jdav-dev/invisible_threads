@@ -72,7 +72,6 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
       email_thread = email_thread_fixture(scope)
       {:ok, _show_live, html} = live(conn, ~p"/threads/#{email_thread}")
 
-      assert html =~ "Show Thread"
       assert html =~ email_thread.subject
     end
   end

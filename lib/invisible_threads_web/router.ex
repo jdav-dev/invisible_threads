@@ -41,7 +41,7 @@ defmodule InvisibleThreadsWeb.Router do
       live "/threads/:id", EmailThreadLive.Show, :show
       live "/threads/:id/duplicate", EmailThreadLive.Form, :duplicate
 
-      get "/users/delete-my-data", UserSessionController, :delete_data
+      delete "/users/delete-my-data", UserSessionController, :delete_data
       get "/users/download-my-data", UserSessionController, :download_data
     end
   end

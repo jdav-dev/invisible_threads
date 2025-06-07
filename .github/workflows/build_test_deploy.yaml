@@ -232,7 +232,7 @@ jobs:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
     environment:
       name: fly
-      url: https://invisiblethreads.fly.dev
+      url: https://invisiblethreads.jdav.dev
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

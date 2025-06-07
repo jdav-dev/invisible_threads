@@ -8,10 +8,11 @@ defmodule InvisibleThreads.Conversations.EmailRecipient do
   import Ecto.Changeset
 
   @derive {Swoosh.Email.Recipient, name: :name, address: :address}
-  @primary_key false
+  @primary_key {:id, :binary_id, autogenerate: true}
   embedded_schema do
     field :name, :string
-    field :address, :string, primary_key: true, redact: true
+    field :address, :string, redact: true
+    field :first_message_id, :string
   end
 
   @doc false
@@ -22,5 +23,6 @@ defmodule InvisibleThreads.Conversations.EmailRecipient do
     |> validate_length(:name, count: :codepoints, max: 255)
     # Postmark limits at least some addresses to 255 UTF-16 code points
     |> validate_length(:address, count: :codepoints, max: 255)
+    |> put_change(:id, Ecto.UUID.generate())
   end
 end

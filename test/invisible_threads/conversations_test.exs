@@ -2,6 +2,7 @@ defmodule InvisibleThreads.ConversationsTest do
   use InvisibleThreads.DataCase, async: true
 
   alias InvisibleThreads.Conversations
+  alias Swoosh.Email.Recipient
 
   describe "email_threads" do
     import InvisibleThreads.AccountsFixtures, only: [user_scope_fixture: 0]
@@ -48,14 +49,20 @@ defmodule InvisibleThreads.ConversationsTest do
       assert email_thread.message_stream == "broadcast"
       assert email_thread.from == "from@example.com"
       assert email_thread.subject == "some subject"
-      assert is_binary(email_thread.first_message_id)
-      assert_email_sent(headers: %{"Message-ID" => email_thread.first_message_id})
+
+      [one, two] = email_thread.recipients
+
+      assert_emails_sent([
+        %{subject: email_thread.subject, to: Recipient.format(one)},
+        %{subject: email_thread.subject, to: Recipient.format(two)}
+      ])
+
       assert is_struct(email_thread.inserted_at, DateTime)
 
-      assert email_thread.recipients == [
+      assert [
                %EmailRecipient{name: "Recipient 1", address: "one@example.com"},
                %EmailRecipient{name: "Recipient 2", address: "two@example.com"}
-             ]
+             ] = email_thread.recipients
     end
 
     test "create_email_thread/2 with invalid data returns error changeset" do

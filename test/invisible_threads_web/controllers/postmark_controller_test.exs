@@ -4,25 +4,22 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
   import InvisibleThreads.AccountsFixtures
   import InvisibleThreads.ConversationsFixtures
 
+  alias InvisibleThreads.Conversations
   alias Swoosh.Email.Recipient
 
-  describe "POST /postmark/inbound_webhook/:user_id" do
+  describe "POST /api/postmark/inbound_webhook/:user_id" do
     setup do
       {:ok, scope: user_scope_fixture()}
     end
 
     test "forwards an incoming email to a known thread", %{conn: conn, scope: scope} do
       email_thread = email_thread_fixture(scope)
-      assert_email_sent()
+      assert_emails_sent()
 
-      from_recipient = List.first(email_thread.recipients)
+      [from_recipient, to_recipient] = email_thread.recipients
 
       params = %{
-        "MailboxHash" => email_thread.id,
-        "FromFull" => %{
-          "Email" => from_recipient.address,
-          "Name" => from_recipient.name
-        },
+        "MailboxHash" => "#{email_thread.id}_#{from_recipient.id}",
         "TextBody" => "some text_body",
         "HtmlBody" => "some html_body",
         "Attachments" => [
@@ -49,43 +46,41 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
         )
         |> post(~p"/api/postmark/inbound_webhook/#{scope.user}", params)
 
-      assert %{"id" => message_id} = json_response(conn, 200)
+      assert response(conn, 200)
 
-      assert_email_sent(fn email ->
-        assert email.headers == %{
-                 "Message-ID" => message_id,
-                 "In-Reply-To" => email_thread.first_message_id,
-                 "References" => email_thread.first_message_id
-               }
-
-        assert email.subject == email_thread.subject
-        assert email.from == {from_recipient.name, email_thread.from}
-
-        for email_recipient <- email_thread.recipients, email_recipient != from_recipient do
-          assert Recipient.format(email_recipient) in email.bcc
+      email =
+        receive do
+          {:emails, [email]} -> email
+        after
+          100 -> flunk("No bulk emails were sent")
         end
 
-        refute Recipient.format(from_recipient) in email.bcc
+      assert is_binary(email.headers["Message-ID"])
+      assert email.headers["In-Reply-To"] == to_recipient.first_message_id
+      assert email.headers["References"] == to_recipient.first_message_id
 
-        assert email.text_body == "some text_body"
-        assert email.html_body == "some html_body"
+      assert email.from == {from_recipient.name, email_thread.from}
+      assert email.to == [Recipient.format(to_recipient)]
+      assert email.subject == email_thread.subject
 
-        assert email.attachments == [
-                 %Swoosh.Attachment{
-                   filename: "one.txt",
-                   data: "first content",
-                   content_type: "text/plain",
-                   type: :attachment
-                 },
-                 %Swoosh.Attachment{
-                   filename: "two.txt",
-                   data: "second content",
-                   content_type: "text/plain",
-                   type: :inline,
-                   cid: "some_cid"
-                 }
-               ]
-      end)
+      assert email.text_body == "some text_body"
+      assert email.html_body == "some html_body"
+
+      assert email.attachments == [
+               %Swoosh.Attachment{
+                 filename: "one.txt",
+                 data: "first content",
+                 content_type: "text/plain",
+                 type: :attachment
+               },
+               %Swoosh.Attachment{
+                 filename: "two.txt",
+                 data: "second content",
+                 content_type: "text/plain",
+                 type: :inline,
+                 cid: "some_cid"
+               }
+             ]
     end
 
     test "returns 401 for unknown users", %{conn: conn} do
@@ -117,6 +112,101 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
         |> post(~p"/api/postmark/inbound_webhook/#{scope.user}", params)
 
       assert response(conn, 403) == "Forbidden"
+    end
+
+    test "unsubscribes recipients when the subject is unsubscribe", %{conn: conn, scope: scope} do
+      email_thread =
+        email_thread_fixture(scope,
+          recipients: [
+            %{name: "Recipient 1", address: "one@example.com"},
+            %{name: "Recipient 2", address: "two@example.com"},
+            %{name: "Recipient 3", address: "three@example.com"}
+          ]
+        )
+
+      assert_emails_sent()
+
+      [one, two, three] = email_thread.recipients
+
+      params = %{
+        "Subject" => "unsubscribe",
+        "MailboxHash" => email_thread.id,
+        "FromFull" => %{
+          "Email" => one.address
+        }
+      }
+
+      conn =
+        conn
+        |> put_req_header(
+          "authorization",
+          Plug.BasicAuth.encode_basic_auth("postmark", scope.user.inbound_webhook_password)
+        )
+        |> post(~p"/api/postmark/inbound_webhook/#{scope.user}", params)
+
+      assert response(conn, 200)
+
+      updated_email_thread = Conversations.get_email_thread(scope, email_thread.id)
+      refute one in updated_email_thread.recipients
+
+      assert_emails_sent([
+        %{
+          to: [Recipient.format(two)],
+          subject: email_thread.subject,
+          text_body: "Recipient 1 has unsubscribed from this thread.\n"
+        },
+        %{
+          to: [Recipient.format(three)],
+          subject: email_thread.subject,
+          text_body: "Recipient 1 has unsubscribed from this thread.\n"
+        }
+      ])
+    end
+
+    test "deletes an email thread if less than two participants remain", %{
+      conn: conn,
+      scope: scope
+    } do
+      email_thread =
+        email_thread_fixture(scope,
+          recipients: [
+            %{name: "Recipient 1", address: "one@example.com"},
+            %{name: "Recipient 2", address: "two@example.com"}
+          ]
+        )
+
+      assert_emails_sent()
+
+      [one, two] = email_thread.recipients
+
+      params = %{
+        "Subject" => "unsubscribe",
+        "MailboxHash" => email_thread.id,
+        "FromFull" => %{
+          "Email" => one.address
+        }
+      }
+
+      conn =
+        conn
+        |> put_req_header(
+          "authorization",
+          Plug.BasicAuth.encode_basic_auth("postmark", scope.user.inbound_webhook_password)
+        )
+        |> post(~p"/api/postmark/inbound_webhook/#{scope.user}", params)
+
+      assert response(conn, 200)
+
+      refute Conversations.get_email_thread(scope, email_thread.id)
+
+      assert_emails_sent([
+        %{
+          to: [Recipient.format(two)],
+          subject: email_thread.subject,
+          text_body:
+            "This invisible thread has been closed.  No further messages will be delivered or shared.\n"
+        }
+      ])
     end
   end
 end

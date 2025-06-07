@@ -80,7 +80,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
   if Mix.env() == :test do
     # Ignore email messages during tests
-    def handle_info({:email, %Swoosh.Email{}}, socket) do
+    def handle_info({:emails, _emails}, socket) do
       {:noreply, socket}
     end
   end

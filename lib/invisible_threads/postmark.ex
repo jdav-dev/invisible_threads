@@ -41,13 +41,18 @@ defmodule InvisibleThreads.Postmark do
   @doc """
   [List message streams](https://postmarkapp.com/developer/api/message-streams-api#list-message-streams).
   """
-  def list_broadcast_streams(server_token) do
+  def list_message_streams(server_token) do
     server_token
     |> new_req()
-    |> Req.get(url: "/message-streams", params: %{"MessageStreamType" => "Broadcasts"})
+    |> Req.get(url: "/message-streams")
     |> case do
       {:ok, %Req.Response{status: 200, body: %{"MessageStreams" => message_streams}}} ->
-        options = for %{"Name" => name, "ID" => id} <- message_streams, do: {name, id}
+        options =
+          for %{"ID" => id, "Name" => name, "MessageStreamType" => type} <- message_streams,
+              type != "Inbound" do
+            {name, id}
+          end
+
         {:ok, options}
 
       error ->

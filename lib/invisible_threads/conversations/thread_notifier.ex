@@ -3,37 +3,53 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
   Deliver messages to email threads.
   """
 
+  use InvisibleThreadsWeb, :verified_routes
+
   import Swoosh.Email
 
   alias InvisibleThreads.Mailer
 
   defp deliver(email, email_thread, user) do
+    [mailbox_name, domain] = String.split(user.inbound_address, "@", parts: 2)
+
     email =
       email
-      |> put_reply_to(email_thread, user.inbound_address)
-      |> bcc(email_thread.recipients)
       |> subject(email_thread.subject)
-      |> put_headers(email_thread.first_message_id)
       |> put_provider_option(:message_stream, email_thread.message_stream)
       |> put_provider_option(:tag, email_thread.subject)
 
-    with {:ok, %{id: message_id}} <- Mailer.deliver(email, api_key: user.server_token) do
-      {:ok, message_id}
-    end
+    emails =
+      for recipient <- email_thread.recipients do
+        recipient_reply_to = "#{mailbox_name}+#{email_thread.id}_#{recipient.id}@#{domain}"
+
+        email
+        |> to(recipient)
+        |> reply_to(recipient_reply_to)
+        |> put_in_reply_headers(recipient.first_message_id)
+        |> put_unsubscribe_headers(user, email_thread, recipient, recipient_reply_to)
+      end
+
+    Mailer.deliver_many(emails, api_key: user.server_token)
   end
 
-  defp put_reply_to(email, email_thread, inbound_address) do
-    [mailbox_name, domain] = String.split(inbound_address, "@", parts: 2)
-    reply_to(email, "#{mailbox_name}+#{email_thread.id}@#{domain}")
-  end
-
-  defp put_headers(email, in_reply_to) when is_binary(in_reply_to) do
+  defp put_in_reply_headers(email, in_reply_to) when is_binary(in_reply_to) do
     email
     |> header("In-Reply-To", in_reply_to)
     |> header("References", in_reply_to)
   end
 
-  defp put_headers(email, nil), do: email
+  defp put_in_reply_headers(email, nil), do: email
+
+  defp put_unsubscribe_headers(email, user, email_thread, recipient, recipient_reply_to) do
+    unsubscribe_url = url(~p"/api/postmark/unsubscribe/#{user}/#{email_thread}/#{recipient}")
+
+    email
+    |> header("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+    |> header(
+      "List-Unsubscribe",
+      "<#{unsubscribe_url}>, <mailto:#{recipient_reply_to}?subject=unsubscribe>"
+    )
+  end
 
   def deliver_introduction(email_thread, user) do
     participants = Enum.map_join(email_thread.recipients, "\n- ", & &1.name)
@@ -54,6 +70,15 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     |> deliver(email_thread, user)
   end
 
+  def deliver_unsubscribe(email_thread, user, unsubscribed_recipient) do
+    new()
+    |> from({unsubscribed_recipient.name, email_thread.from})
+    |> text_body("""
+    #{unsubscribed_recipient.name} has unsubscribed from this thread.
+    """)
+    |> deliver(email_thread, user)
+  end
+
   def deliver_closing(email_thread, user) do
     new()
     |> from({"Invisible Threads", email_thread.from})
@@ -63,18 +88,14 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     |> deliver(email_thread, user)
   end
 
-  def forward(email_thread, user, params) do
-    from_email = String.downcase(params["FromFull"]["Email"])
-
+  def forward(email_thread, from_recipient, user, params) do
     email_thread =
       Map.update!(email_thread, :recipients, fn recipients ->
-        Enum.reject(recipients, fn email_recipient ->
-          String.downcase(email_recipient.address) == from_email
-        end)
+        Enum.reject(recipients, &(&1.id == from_recipient.id))
       end)
 
     new()
-    |> from({params["FromFull"]["Name"], email_thread.from})
+    |> from({from_recipient.name, email_thread.from})
     |> text_body(params["TextBody"])
     |> html_body(params["HtmlBody"])
     |> put_attachments(params["Attachments"])

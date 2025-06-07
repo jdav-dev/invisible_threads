@@ -47,6 +47,10 @@ defmodule InvisibleThreadsWeb.Router do
     pipe_through :api
 
     post "/postmark/inbound_webhook/:user_id", PostmarkController, :inbound_webhook
+
+    post "/postmark/unsubscribe/:user_id/:email_thread_id/:recipient_id",
+         UnsubscribeController,
+         :unsubscribe
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

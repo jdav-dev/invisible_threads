@@ -50,10 +50,6 @@ defmodule InvisibleThreads.ConversationsTest do
       assert email_thread.from == "from@example.com"
       assert email_thread.subject == "some subject"
 
-      # assert_emails_sent(fn email ->
-      #   assert email.headers["Message-ID"] == email_thread.id
-      # end)
-
       [one, two] = email_thread.recipients
 
       assert_emails_sent([

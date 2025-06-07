@@ -76,7 +76,7 @@ defmodule InvisibleThreads.Conversations do
   def create_email_thread(%Scope{} = scope, attrs) do
     with {:ok, email_thread} <- EmailThread.new(scope, attrs),
          {:ok, message_id} <-
-           ThreadNotifier.deliver_introduction(email_thread, scope.user.inbound_address) do
+           ThreadNotifier.deliver_introduction(email_thread, scope.user) do
       updated_email_thread = struct!(email_thread, first_message_id: message_id)
 
       Accounts.update_user!(scope.user.id, fn user ->
@@ -100,7 +100,7 @@ defmodule InvisibleThreads.Conversations do
   """
   def delete_email_thread(%Scope{} = scope, %EmailThread{} = email_thread) do
     with {:ok, _message_id} <-
-           ThreadNotifier.deliver_closing(email_thread, scope.user.inbound_address) do
+           ThreadNotifier.deliver_closing(email_thread, scope.user) do
       Accounts.update_user!(scope.user.id, fn user ->
         struct!(user, email_threads: Enum.reject(user.email_threads, &(&1.id == email_thread.id)))
       end)
@@ -127,7 +127,7 @@ defmodule InvisibleThreads.Conversations do
   def forward_inbound_email(%Scope{} = scope, %{"MailboxHash" => email_thread_id} = params) do
     case get_email_thread(scope, email_thread_id) do
       %EmailThread{} = email_thread ->
-        ThreadNotifier.forward(email_thread, scope.user.inbound_address, params)
+        ThreadNotifier.forward(email_thread, scope.user, params)
 
       nil ->
         {:error, :unknown_thread}

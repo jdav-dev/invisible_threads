@@ -7,17 +7,17 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
   alias InvisibleThreads.Mailer
 
-  defp deliver(email, email_thread, inbound_address) do
+  defp deliver(email, email_thread, user) do
     email =
       email
-      |> put_reply_to(email_thread, inbound_address)
+      |> put_reply_to(email_thread, user.inbound_address)
       |> bcc(email_thread.recipients)
       |> subject(email_thread.subject)
       |> put_headers(email_thread.first_message_id)
       |> put_provider_option(:message_stream, email_thread.message_stream)
       |> put_provider_option(:tag, email_thread.subject)
 
-    with {:ok, %{id: message_id}} <- Mailer.deliver(email) do
+    with {:ok, %{id: message_id}} <- Mailer.deliver(email, api_key: user.server_token) do
       {:ok, message_id}
     end
   end
@@ -35,7 +35,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
   defp put_headers(email, nil), do: email
 
-  def deliver_introduction(email_thread, inbound_address) do
+  def deliver_introduction(email_thread, user) do
     participants = Enum.map_join(email_thread.recipients, "\n- ", & &1.name)
 
     new()
@@ -51,19 +51,19 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
     Feel free to reply to this message to start the conversation.  All responses will be visible to everyone on the thread.
     """)
-    |> deliver(email_thread, inbound_address)
+    |> deliver(email_thread, user)
   end
 
-  def deliver_closing(email_thread, inbound_address) do
+  def deliver_closing(email_thread, user) do
     new()
     |> from({"Invisible Threads", email_thread.from})
     |> text_body("""
     This invisible thread has been closed.  No further messages will be delivered or shared.
     """)
-    |> deliver(email_thread, inbound_address)
+    |> deliver(email_thread, user)
   end
 
-  def forward(email_thread, inbound_address, params) do
+  def forward(email_thread, user, params) do
     from_email = String.downcase(params["FromFull"]["Email"])
 
     email_thread =
@@ -78,7 +78,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     |> text_body(params["TextBody"])
     |> html_body(params["HtmlBody"])
     |> put_attachments(params["Attachments"])
-    |> deliver(email_thread, inbound_address)
+    |> deliver(email_thread, user)
   end
 
   defp put_attachments(email, attachments) do

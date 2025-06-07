@@ -55,7 +55,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Show do
   end
 
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)
-      when type in [:created, :deleted] do
+      when type in [:created, :closed, :deleted] do
     {:noreply, socket}
   end
 end

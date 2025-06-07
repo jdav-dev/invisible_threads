@@ -17,16 +17,9 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
 
   setup :register_and_log_in_user
 
-  defp create_email_thread(%{scope: scope}) do
-    email_thread = email_thread_fixture(scope)
-
-    %{email_thread: email_thread}
-  end
-
   describe "Index" do
-    setup [:create_email_thread]
-
-    test "lists all email_threads", %{conn: conn, email_thread: email_thread} do
+    test "lists all email_threads", %{conn: conn, scope: scope} do
+      email_thread = email_thread_fixture(scope)
       {:ok, _index_live, html} = live(conn, ~p"/threads")
 
       assert html =~ "Listing Threads"
@@ -62,7 +55,8 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
       assert html =~ "some subject"
     end
 
-    test "deletes email_thread in listing", %{conn: conn, email_thread: email_thread} do
+    test "deletes email_thread in listing", %{conn: conn, scope: scope} do
+      email_thread = email_thread_fixture(scope, closed?: true)
       {:ok, index_live, _html} = live(conn, ~p"/threads")
 
       assert index_live
@@ -74,9 +68,8 @@ defmodule InvisibleThreadsWeb.EmailThreadLiveTest do
   end
 
   describe "Show" do
-    setup [:create_email_thread]
-
-    test "displays email_thread", %{conn: conn, email_thread: email_thread} do
+    test "displays email_thread", %{conn: conn, scope: scope} do
+      email_thread = email_thread_fixture(scope)
       {:ok, _show_live, html} = live(conn, ~p"/threads/#{email_thread}")
 
       assert html =~ "Show Thread"

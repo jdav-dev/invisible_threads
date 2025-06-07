@@ -13,6 +13,7 @@ defmodule InvisibleThreads.Conversations.EmailRecipient do
     field :name, :string
     field :address, :string, redact: true
     field :first_message_id, :string
+    field :unsubscribed?, :boolean, default: false
   end
 
   @doc false

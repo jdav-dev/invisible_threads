@@ -19,7 +19,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
       |> put_provider_option(:tag, email_thread.subject)
 
     emails =
-      for recipient <- email_thread.recipients do
+      for recipient <- email_thread.recipients, !recipient.unsubscribed? do
         recipient_reply_to = "#{mailbox_name}+#{email_thread.id}_#{recipient.id}@#{domain}"
 
         email

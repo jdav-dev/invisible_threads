@@ -46,7 +46,7 @@ defmodule InvisibleThreadsWeb.UnsubscribeControllerTest do
       ])
     end
 
-    test "deletes an email thread if less than two participants remain", %{
+    test "closes an email thread if less than two participants remain", %{
       conn: conn,
       scope: scope
     } do
@@ -65,7 +65,8 @@ defmodule InvisibleThreadsWeb.UnsubscribeControllerTest do
       conn = post(conn, ~p"/api/postmark/unsubscribe/#{scope.user}/#{email_thread}/#{one}")
       assert response(conn, 200) == ""
 
-      refute Conversations.get_email_thread(scope, email_thread.id)
+      assert email_thread = Conversations.get_email_thread(scope, email_thread.id)
+      assert email_thread.closed?
 
       assert_emails_sent([
         %{

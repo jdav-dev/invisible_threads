@@ -72,20 +72,56 @@ defmodule InvisibleThreads.ConversationsTest do
                Conversations.create_email_thread(scope, @invalid_attrs)
     end
 
-    test "delete_email_thread/2 deletes the email_thread" do
+    test "close_email_thread/2 closes the email_thread" do
       scope = user_scope_fixture()
       email_thread = email_thread_fixture(scope)
-      assert {:ok, %EmailThread{}} = Conversations.delete_email_thread(scope, email_thread)
+      assert {:ok, email_thread} = Conversations.close_email_thread(scope, email_thread.id)
+      assert email_thread.closed?
+    end
+
+    test "close_email_thread/2 is a no-op for already closed threads" do
+      scope = user_scope_fixture()
+      email_thread = email_thread_fixture(scope, closed?: true)
+      assert {:ok, _email_thread} = Conversations.close_email_thread(scope, email_thread.id)
+      assert email_thread == Conversations.get_email_thread(scope, email_thread.id)
+    end
+
+    test "close_email_thread/2 returns {:error, :not_found} for unknown threads" do
+      scope = user_scope_fixture()
+      assert {:error, :not_found} = Conversations.close_email_thread(scope, "unknown")
+    end
+
+    test "close_email_thread/2 with invalid scope returns {:error, :not_found}" do
+      scope = user_scope_fixture()
+      other_scope = user_scope_fixture()
+      email_thread = email_thread_fixture(scope)
+
+      assert {:error, :not_found} = Conversations.close_email_thread(other_scope, email_thread.id)
+      assert email_thread == Conversations.get_email_thread(scope, email_thread.id)
+    end
+
+    test "delete_email_thread/2 deletes the email_thread" do
+      scope = user_scope_fixture()
+      email_thread = email_thread_fixture(scope, closed?: true)
+      assert :ok = Conversations.delete_email_thread(scope, email_thread.id)
 
       refute Conversations.get_email_thread(scope, email_thread.id)
+    end
+
+    test "delete_email_thread/2 returns error for open threads" do
+      scope = user_scope_fixture()
+      email_thread = email_thread_fixture(scope, closed?: false)
+      assert {:error, :not_closed} = Conversations.delete_email_thread(scope, email_thread.id)
+
+      assert Conversations.get_email_thread(scope, email_thread.id)
     end
 
     test "delete_email_thread/2 with invalid scope is a no-op" do
       scope = user_scope_fixture()
       other_scope = user_scope_fixture()
-      email_thread = email_thread_fixture(scope)
+      email_thread = email_thread_fixture(scope, closed?: true)
 
-      assert {:ok, email_thread} == Conversations.delete_email_thread(other_scope, email_thread)
+      assert :ok == Conversations.delete_email_thread(other_scope, email_thread.id)
       refute Conversations.get_email_thread(other_scope, email_thread.id)
       assert email_thread == Conversations.get_email_thread(scope, email_thread.id)
     end

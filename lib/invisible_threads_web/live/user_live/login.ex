@@ -13,7 +13,7 @@ defmodule InvisibleThreadsWeb.UserLive.Login do
           <.icon name="hero-information-circle" class="size-6 shrink-0" />
           <div>
             <p>It is recommended to create a dedicated Postmark server for Invisible Threads.</p>
-            <p>The inbound webhook of the provided server will be updated when logging in.</p>
+            <p>The inbound webhook of the provided server will be updated during login.</p>
           </div>
         </div>
 

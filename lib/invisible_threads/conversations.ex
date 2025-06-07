@@ -18,6 +18,7 @@ defmodule InvisibleThreads.Conversations do
   The broadcasted messages match the pattern:
 
     * {:created, %EmailThread{}}
+    * {:closed, %EmailThread{}}
     * {:deleted, %EmailThread{}}
 
   """
@@ -67,7 +68,7 @@ defmodule InvisibleThreads.Conversations do
   end
 
   @doc """
-  Creates a email_thread.
+  Creates an email_thread.
 
   ## Examples
 
@@ -100,26 +101,76 @@ defmodule InvisibleThreads.Conversations do
   end
 
   @doc """
-  Deletes a email_thread.
+  Closes an email_thread.
 
   ## Examples
 
-      iex> delete_email_thread(email_thread)
-      {:ok, %EmailThread{}}
+      iex> close_email_thread(email_thread_id)
+      {:ok, email_thread}
+
+      iex> close_email_thread(invalid_id)
+      {:error, :not_found}
 
   """
-  def delete_email_thread(%Scope{} = scope, %EmailThread{} = email_thread) do
-    with {:ok, _metadatas} <- ThreadNotifier.deliver_closing(email_thread, scope.user) do
-      Accounts.update_user!(scope.user.id, fn user ->
-        Map.update!(user, :email_threads, fn email_threads ->
-          Enum.reject(email_threads, &(&1.id == email_thread.id))
-        end)
-      end)
-
-      broadcast(scope, {:deleted, email_thread})
-
-      {:ok, email_thread}
+  def close_email_thread(%Scope{} = scope, email_thread_id) when is_binary(email_thread_id) do
+    with %EmailThread{closed?: false} = email_thread <- get_email_thread(scope, email_thread_id),
+         {:ok, _metadatas} <- ThreadNotifier.deliver_closing(email_thread, scope.user) do
+      Accounts.update_user!(scope.user.id, &do_close_email_thread(&1, email_thread_id))
+      updated_email_thread = struct!(email_thread, closed?: true)
+      broadcast(scope, {:closed, updated_email_thread})
+      {:ok, updated_email_thread}
+    else
+      %EmailThread{closed?: true} = email_thread -> {:ok, email_thread}
+      nil -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
     end
+  end
+
+  defp do_close_email_thread(user, email_thread_id) do
+    Map.update!(user, :email_threads, fn email_threads ->
+      Enum.map(email_threads, fn
+        %EmailThread{id: ^email_thread_id} = email_thread ->
+          struct!(email_thread, closed?: true)
+
+        email_thread ->
+          email_thread
+      end)
+    end)
+  end
+
+  @doc """
+  Deletes a closed email_thread.
+
+  Returns `{:error, :not_closed}` if the thread is not closed.
+
+  ## Examples
+
+      iex> delete_email_thread(scope, closed_email_thread_id)
+      :ok
+
+      iex> delete_email_thread(scope, open_email_thread_id)
+      {:error, :not_closed}
+
+  """
+  def delete_email_thread(%Scope{} = scope, email_thread_id) when is_binary(email_thread_id) do
+    case get_email_thread(scope, email_thread_id) do
+      %EmailThread{closed?: true} = email_thread ->
+        Accounts.update_user!(scope.user.id, &do_delete_email_thread(&1, email_thread_id))
+        broadcast(scope, {:deleted, email_thread})
+        :ok
+
+      nil ->
+        :ok
+
+      %EmailThread{closed?: false} ->
+        {:error, :not_closed}
+    end
+  end
+
+  defp do_delete_email_thread(user, email_thread_id) do
+    Map.update!(user, :email_threads, fn email_threads ->
+      Enum.reject(email_threads, &(&1.id == email_thread_id and &1.closed?))
+    end)
   end
 
   @doc """
@@ -157,14 +208,14 @@ defmodule InvisibleThreads.Conversations do
   def unsubscribe!(user_id, email_thread_id, recipient_id) do
     if original_user = Accounts.get_user(user_id) do
       updated_user =
-        Accounts.update_user!(user_id, &reject_recipient(&1, email_thread_id, recipient_id))
+        Accounts.update_user!(user_id, &unsubscribe_recipient(&1, email_thread_id, recipient_id))
 
       updated_email_thread = Enum.find(updated_user.email_threads, &(&1.id == email_thread_id))
 
-      if length(updated_email_thread.recipients) < 2 do
+      if Enum.count_until(updated_email_thread.recipients, &(!&1.unsubscribed?), 2) < 2 do
         updated_user
         |> Scope.for_user()
-        |> delete_email_thread(updated_email_thread)
+        |> close_email_thread(updated_email_thread.id)
       else
         original_email_thread =
           Enum.find(original_user.email_threads, &(&1.id == email_thread_id))
@@ -184,23 +235,29 @@ defmodule InvisibleThreads.Conversations do
     :ok
   end
 
-  defp reject_recipient(%User{} = user, email_thread_id, recipient_id) do
-    Map.update!(user, :email_threads, &reject_recipient(&1, email_thread_id, recipient_id))
+  defp unsubscribe_recipient(%User{} = user, email_thread_id, recipient_id) do
+    Map.update!(user, :email_threads, &unsubscribe_recipient(&1, email_thread_id, recipient_id))
   end
 
-  defp reject_recipient(email_threads, email_thread_id, recipient_id) do
+  defp unsubscribe_recipient(email_threads, email_thread_id, recipient_id) do
     Enum.map(email_threads, fn
       %EmailThread{id: ^email_thread_id} = email_recipient ->
-        reject_recipient(email_recipient, recipient_id)
+        unsubscribe_recipient(email_recipient, recipient_id)
 
       email_thread ->
         email_thread
     end)
   end
 
-  defp reject_recipient(email_thread, recipient_id) do
+  defp unsubscribe_recipient(email_thread, recipient_id) do
     Map.update!(email_thread, :recipients, fn recipients ->
-      Enum.reject(recipients, &(&1.id == recipient_id))
+      Enum.map(recipients, fn
+        %EmailRecipient{id: ^recipient_id} = email_recipient ->
+          struct!(email_recipient, unsubscribed?: true)
+
+        email_recipient ->
+          email_recipient
+      end)
     end)
   end
 

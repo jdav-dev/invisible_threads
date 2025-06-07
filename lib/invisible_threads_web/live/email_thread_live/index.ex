@@ -60,15 +60,13 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
 
   @impl Phoenix.LiveView
   def handle_event("delete", %{"id" => id}, socket) do
-    email_thread = Conversations.get_email_thread(socket.assigns.current_scope, id)
-    {:ok, _} = Conversations.delete_email_thread(socket.assigns.current_scope, email_thread)
-
-    {:noreply, stream_delete(socket, :email_threads, email_thread)}
+    :ok = Conversations.delete_email_thread(socket.assigns.current_scope, id)
+    {:noreply, socket}
   end
 
   @impl Phoenix.LiveView
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)
-      when type in [:created, :deleted] do
+      when type in [:created, :closed, :deleted] do
     {:noreply,
      stream(
        socket,

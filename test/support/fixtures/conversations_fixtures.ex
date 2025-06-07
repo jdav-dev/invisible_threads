@@ -20,6 +20,14 @@ defmodule InvisibleThreads.ConversationsFixtures do
       })
 
     {:ok, email_thread} = InvisibleThreads.Conversations.create_email_thread(scope, attrs)
-    email_thread
+
+    if attrs[:closed?] do
+      {:ok, closed_email_thread} =
+        InvisibleThreads.Conversations.close_email_thread(scope, email_thread.id)
+
+      closed_email_thread
+    else
+      email_thread
+    end
   end
 end

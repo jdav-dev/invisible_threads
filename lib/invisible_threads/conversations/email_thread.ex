@@ -13,6 +13,7 @@ defmodule InvisibleThreads.Conversations.EmailThread do
     field :from, :string
     field :subject, :string
     embeds_many :recipients, InvisibleThreads.Conversations.EmailRecipient, on_replace: :delete
+    field :closed?, :boolean, default: false
 
     timestamps type: :utc_datetime, updated_at: false
   end

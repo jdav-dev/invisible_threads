@@ -50,6 +50,7 @@ defmodule InvisibleThreads.MixProject do
        compile: false,
        depth: 1},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:jason, "~> 1.4"},
       {:phoenix, "~> 1.8.0-rc.3", override: true},
       {:phoenix_ecto, "~> 4.5"},
       {:phoenix_html, "~> 4.1"},

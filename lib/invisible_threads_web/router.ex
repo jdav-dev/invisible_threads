@@ -27,7 +27,7 @@ defmodule InvisibleThreadsWeb.Router do
 
       live "/users/log-in", UserLive.Login, :new
       post "/users/log-in", UserSessionController, :create
-      delete "/users/log-out", UserSessionController, :delete
+      delete "/users/log-out", UserSessionController, :log_out
     end
   end
 
@@ -40,6 +40,9 @@ defmodule InvisibleThreadsWeb.Router do
       live "/threads/new", EmailThreadLive.Form, :new
       live "/threads/:id", EmailThreadLive.Show, :show
       live "/threads/:id/duplicate", EmailThreadLive.Form, :duplicate
+
+      get "/users/delete-my-data", UserSessionController, :delete_data
+      get "/users/download-my-data", UserSessionController, :download_data
     end
   end
 

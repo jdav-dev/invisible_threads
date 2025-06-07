@@ -16,9 +16,17 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
               <.button type="button">
                 <.icon name="hero-trash" /> Delete my data
               </.button>
-              <.button type="button">
-                <.icon name="hero-arrow-down-tray" /> Download my data
-              </.button>
+
+              <.link href={~p"/users/delete-my-data"} class="btn btn-primary btn-soft" target="_blank">
+                <.icon name="hero-trash" /> Delete my data
+              </.link>
+              <.link
+                href={~p"/users/download-my-data"}
+                class="btn btn-primary btn-soft"
+                target="_blank"
+              >
+                <.icon name="hero-arrow-top-right-on-square" /> Download my data
+              </.link>
             </div>
             <div class="flex">
               <.link class="btn btn-primary w-full" navigate={~p"/threads/new"}>

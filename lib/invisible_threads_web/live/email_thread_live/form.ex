@@ -42,19 +42,22 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
           autocomplete="off"
         />
         <.inputs_for :let={rf} field={@form[:recipients]}>
+          <span>Participant</span>
           <input type="hidden" name={"#{@form[:recipients_sort].name}[]"} value={rf.index} />
-          <.input field={rf[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
-          <.input field={rf[:address]} type="email" label="Address" phx-debounce autocomplete="off" />
-          <button
-            type="button"
-            class="btn"
-            name={"#{@form[:recipients_drop].name}[]"}
-            value={rf.index}
-            phx-click={JS.dispatch("change")}
-            disabled={@disable_remove_participant?}
-          >
-            <.icon name="hero-x-mark" class="w-6 h-6 relative top-2" />
-          </button>
+          <div class="w-full flex gap-4 items-center">
+            <.input field={rf[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
+            <.input field={rf[:address]} type="email" label="Address" phx-debounce autocomplete="off" />
+            <button
+              type="button"
+              class="btn btn-primary btn-soft flex-none mt-3"
+              name={"#{@form[:recipients_drop].name}[]"}
+              value={rf.index}
+              phx-click={JS.dispatch("change")}
+              disabled={@disable_remove_participant?}
+            >
+              <.icon name="hero-trash" class="w-6 h-6" />
+            </button>
+          </div>
         </.inputs_for>
         <input type="hidden" name={"#{@form.name}[recipients_drop][]"} />
         <button

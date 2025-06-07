@@ -7,6 +7,7 @@ defmodule InvisibleThreads.Conversations.EmailRecipient do
 
   import Ecto.Changeset
 
+  @derive Jason.Encoder
   @derive {Swoosh.Email.Recipient, name: :name, address: :address}
   @primary_key {:id, :binary_id, autogenerate: true}
   embedded_schema do

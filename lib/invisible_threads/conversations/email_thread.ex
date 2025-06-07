@@ -7,6 +7,7 @@ defmodule InvisibleThreads.Conversations.EmailThread do
 
   import Ecto.Changeset
 
+  @derive Jason.Encoder
   @primary_key {:id, :binary_id, autogenerate: true}
   embedded_schema do
     field :message_stream, :string

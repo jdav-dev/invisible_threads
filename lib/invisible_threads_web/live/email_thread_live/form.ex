@@ -74,7 +74,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     message_stream_options =
-      case InvisibleThreads.Postmark.list_broadcast_streams(
+      case InvisibleThreads.Postmark.list_message_streams(
              socket.assigns.current_scope.user.server_token
            ) do
         {:ok, options} -> options

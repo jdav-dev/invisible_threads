@@ -56,7 +56,7 @@ defmodule InvisibleThreadsWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       phx-mounted={
-        JS.dispatch("invisiblethreads:auto-clear", detail: %{timeout: 5000, attr: "phx-click"})
+        JS.dispatch("invisiblethreads:auto-clear", detail: %{timeout: 4000, attr: "phx-click"})
       }
       role="alert"
       class="toast toast-top toast-end z-50"
@@ -420,6 +420,21 @@ defmodule InvisibleThreadsWeb.CoreComponents do
   def icon(%{name: "hero-" <> _} = assigns) do
     ~H"""
     <span class={[@name, @class]} />
+    """
+  end
+
+  @doc """
+  Renders email thread status.
+  """
+  attr :email_thread, InvisibleThreads.Conversations.EmailThread, required: true
+
+  def thread_status(assigns) do
+    ~H"""
+    <%= if @email_thread.closed? do %>
+      <small class="badge badge-error badge-sm">Closed</small>
+    <% else %>
+      <small class="badge badge-info badge-sm">Active</small>
+    <% end %>
     """
   end
 

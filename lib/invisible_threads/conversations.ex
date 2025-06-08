@@ -203,7 +203,7 @@ defmodule InvisibleThreads.Conversations do
   @doc """
   Remove a participant from an email thread.
 
-  If less than two participants remain, the thread is deleted.
+  If less than two participants remain, the thread is closed.
   """
   def unsubscribe!(user_id, email_thread_id, recipient_id) do
     if original_user = Accounts.get_user(user_id) do
@@ -216,18 +216,12 @@ defmodule InvisibleThreads.Conversations do
       if Enum.count_until(updated_email_thread.recipients, &(!&1.unsubscribed?), 2) < 2 do
         close_email_thread(scope, updated_email_thread.id)
       else
-        original_email_thread =
-          Enum.find(original_user.email_threads, &(&1.id == email_thread_id))
-
-        unsubscribed_recipient =
-          Enum.find(original_email_thread.recipients, &(&1.id == recipient_id))
-
-        {:ok, _metadatas} =
-          ThreadNotifier.deliver_unsubscribe(
-            updated_email_thread,
-            updated_user,
-            unsubscribed_recipient
-          )
+        deliver_unsubscribe_notification(
+          original_user,
+          updated_user,
+          updated_email_thread,
+          recipient_id
+        )
 
         broadcast(scope, {:updated, updated_email_thread})
       end
@@ -262,10 +256,32 @@ defmodule InvisibleThreads.Conversations do
     end)
   end
 
+  defp deliver_unsubscribe_notification(
+         original_user,
+         updated_user,
+         updated_email_thread,
+         recipient_id
+       ) do
+    original_email_thread =
+      Enum.find(original_user.email_threads, &(&1.id == updated_email_thread.id))
+
+    unsubscribed_recipient =
+      Enum.find(original_email_thread.recipients, &(&1.id == recipient_id))
+
+    if unsubscribed_recipient do
+      {:ok, _metadatas} =
+        ThreadNotifier.deliver_unsubscribe(
+          updated_email_thread,
+          updated_user,
+          unsubscribed_recipient
+        )
+    end
+  end
+
   @doc """
   Remove a participant from an email thread by recipient email address.
 
-  If less than two participants remain, the thread is deleted.
+  If less than two participants remain, the thread is closed.
   """
   def unsubscribe_by_address!(user_id, email_thread_id, recipient_address) do
     recipient_address = String.downcase(recipient_address)

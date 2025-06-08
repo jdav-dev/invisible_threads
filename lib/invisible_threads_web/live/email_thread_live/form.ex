@@ -11,6 +11,15 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
         {@page_title}
+        <:subtitle>
+          Threads cannot be changed once created.  The sender email address must have a registered
+          and confirmed
+          <.link class="link" href="https://account.postmarkapp.com/signature_domains">
+            Sender Signature
+          </.link>
+          in Postmark.  When a thread is created, an introduction email will immediately go out to
+          all participants.
+        </:subtitle>
         <:actions>
           <div class="flex flex-col sm:flex-row gap-4 place-content-between">
             <.button navigate={~p"/threads"}>
@@ -30,7 +39,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
         <.input
           field={@form[:from]}
           type="email"
-          label="Sender Email Address (must have a registered and confirmed Sender Signature in Postmark)"
+          label="Sender Email Address"
           phx-debounce
           autocomplete="off"
         />
@@ -44,34 +53,53 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
         <.inputs_for :let={rf} field={@form[:recipients]}>
           <span>Participant</span>
           <input type="hidden" name={"#{@form[:recipients_sort].name}[]"} value={rf.index} />
-          <div class="w-full flex gap-4 items-center">
-            <.input field={rf[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
-            <.input field={rf[:address]} type="email" label="Address" phx-debounce autocomplete="off" />
-            <button
-              type="button"
-              class="btn btn-primary btn-soft flex-none mt-3"
-              name={"#{@form[:recipients_drop].name}[]"}
-              value={rf.index}
-              phx-click={JS.dispatch("change")}
-              disabled={@disable_remove_participant?}
-            >
-              <.icon name="hero-trash" class="w-6 h-6" />
-            </button>
+          <div class="w-full flex flex-col sm:flex-row gap-x-4 items-center">
+            <div class="w-full">
+              <.input field={rf[:name]} type="text" label="Name" phx-debounce autocomplete="off" />
+            </div>
+            <div class="w-full flex gap-x-4 items-center">
+              <div class="w-full flex-grow">
+                <.input
+                  field={rf[:address]}
+                  type="email"
+                  label="Address"
+                  phx-debounce
+                  autocomplete="off"
+                />
+              </div>
+              <button
+                type="button"
+                class="btn btn-primary btn-soft flex-none mt-3.5"
+                name={"#{@form[:recipients_drop].name}[]"}
+                value={rf.index}
+                phx-click={JS.dispatch("change")}
+                disabled={@num_participants <= 2}
+              >
+                <.icon name="hero-trash" class="w-6 h-6" />
+              </button>
+            </div>
           </div>
         </.inputs_for>
         <input type="hidden" name={"#{@form.name}[recipients_drop][]"} />
-        <button
-          type="button"
-          class="btn"
-          name={"#{@form.name}[recipients_sort][]"}
-          value="new"
-          phx-click={JS.dispatch("change")}
-        >
-          Add Thread Participant
-        </button>
-        <footer>
-          <.button phx-disable-with="Saving..." variant="primary">Save Thread</.button>
-          <.button navigate={return_path(@current_scope, @return_to, @email_thread)}>Cancel</.button>
+        <footer class="mt-3 flex flex-col sm:flex-row gap-4 place-content-between">
+          <button
+            type="button"
+            class="btn btn-primary btn-soft"
+            name={"#{@form.name}[recipients_sort][]"}
+            value="new"
+            phx-click={JS.dispatch("change")}
+            phx-disable-with="Adding..."
+            disabled={@num_participants >= 50}
+          >
+            <.icon name="hero-user-plus" /> Add Participant
+          </button>
+          <.button
+            phx-disable-with="Saving..."
+            variant="primary"
+            data-confirm={"Are you sure you want to create a thread with #{@num_participants} participants?"}
+          >
+            Create Thread
+          </.button>
         </footer>
       </.form>
     </Layouts.app>
@@ -110,29 +138,33 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
   defp apply_action(socket, :duplicate, %{"id" => email_thread_id}) do
     email_thread = Conversations.get_email_thread(socket.assigns.current_scope, email_thread_id)
 
+    changeset =
+      socket.assigns.current_scope
+      |> Conversations.change_email_thread(email_thread)
+      |> Ecto.Changeset.put_change(:subject, "#{email_thread.subject} (copy)")
+
     socket
     |> assign(:page_title, "Duplicate Thread")
     |> assign(:email_thread, email_thread)
-    |> assign_form(Conversations.change_email_thread(socket.assigns.current_scope, email_thread))
+    |> assign_form(changeset)
   end
 
   defp assign_form(socket, changeset, opts \\ []) do
     form = to_form(changeset, opts)
 
     num_participants =
-      Enum.count_until(
+      Enum.count(
         form[:recipients].value,
         fn
           %EmailRecipient{} -> true
           %Ecto.Changeset{action: action} when action in [:insert, :update] -> true
           _other -> false
-        end,
-        3
+        end
       )
 
     socket
     |> assign(:form, form)
-    |> assign(:disable_remove_participant?, num_participants <= 2)
+    |> assign(:num_participants, num_participants)
   end
 
   @impl Phoenix.LiveView

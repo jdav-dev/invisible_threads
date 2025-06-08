@@ -45,9 +45,11 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
         rows={@streams.email_threads}
         row_click={fn {_id, email_thread} -> JS.navigate(~p"/threads/#{email_thread}") end}
       >
-        <:col :let={{_id, email_thread}} label="Subject">{email_thread.subject}</:col>
-        <:col :let={{_id, email_thread}} label="Participants">
-          {format_participants(email_thread)}
+        <:col :let={{_id, email_thread}} label="Subject">
+          <span class="line-clamp-1">{email_thread.subject}</span>
+        </:col>
+        <:col :let={{_id, email_thread}} label="Status">
+          <.thread_status email_thread={email_thread} />
         </:col>
         <:action :let={{_id, email_thread}}>
           <div class="sr-only">
@@ -55,25 +57,33 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
           </div>
         </:action>
         <:action :let={{_id, email_thread}}>
-          <.link navigate={~p"/threads/#{email_thread}/duplicate"}>Duplicate</.link>
+          <.link class="hidden sm:block" navigate={~p"/threads/#{email_thread}/duplicate"}>
+            Duplicate
+          </.link>
         </:action>
         <:action :let={{id, email_thread}}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: email_thread.id}) |> hide("##{id}")}
-            data-confirm="Are you sure?"
-          >
-            Delete
-          </.link>
+          <%= if email_thread.closed? do %>
+            <.link
+              class="hidden sm:block"
+              phx-click={JS.push("delete", value: %{id: email_thread.id}) |> hide("##{id}")}
+              data-confirm="Deleted threads cannot be restored."
+            >
+              Delete
+            </.link>
+          <% else %>
+            <.link
+              class="hidden sm:block"
+              phx-click="close"
+              phx-value-id={email_thread.id}
+              data-confirm="This will message all participants.  Closed threads cannot be reopened."
+            >
+              Close
+            </.link>
+          <% end %>
         </:action>
       </.table>
     </Layouts.app>
     """
-  end
-
-  defp format_participants(email_thread) do
-    email_thread.recipients
-    |> Enum.reject(& &1.unsubscribed?)
-    |> Enum.map_join(", ", & &1.name)
   end
 
   @impl Phoenix.LiveView
@@ -89,21 +99,36 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Index do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("delete", %{"id" => id}, socket) do
-    :ok = Conversations.delete_email_thread(socket.assigns.current_scope, id)
-    {:noreply, socket}
+  def handle_event("close", %{"id" => email_thread_id}, socket) do
+    case Conversations.close_email_thread(socket.assigns.current_scope, email_thread_id) do
+      {:ok, updated_email_thread} ->
+        {:noreply, stream_insert(socket, :email_threads, updated_email_thread)}
+
+      {:error, :not_found} ->
+        {:noreply, reset_stream(socket)}
+    end
+  end
+
+  def handle_event("delete", %{"id" => email_thread_id}, socket) do
+    case Conversations.delete_email_thread(socket.assigns.current_scope, email_thread_id) do
+      :ok -> {:noreply, socket}
+      {:error, :not_closed} -> {:noreply, reset_stream(socket)}
+    end
+  end
+
+  defp reset_stream(socket) do
+    stream(
+      socket,
+      :email_threads,
+      Conversations.list_email_threads(socket.assigns.current_scope),
+      reset: true
+    )
   end
 
   @impl Phoenix.LiveView
   def handle_info({type, %InvisibleThreads.Conversations.EmailThread{}}, socket)
       when type in [:created, :updated, :deleted] do
-    {:noreply,
-     stream(
-       socket,
-       :email_threads,
-       Conversations.list_email_threads(socket.assigns.current_scope),
-       reset: true
-     )}
+    {:noreply, reset_stream(socket)}
   end
 
   if Mix.env() == :test do

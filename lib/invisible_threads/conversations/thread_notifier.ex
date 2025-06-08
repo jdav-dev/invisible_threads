@@ -9,36 +9,66 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
   alias InvisibleThreads.Mailer
 
-  defp deliver(email, email_thread, user) do
-    [mailbox_name, domain] = String.split(user.inbound_address, "@", parts: 2)
+  @doc """
+  Deliver the initial introduction message to thread participants.
 
-    email =
+  """
+  def deliver_introduction(email_thread, user) do
+    email = new_email(email_thread)
+
+    for recipient <- email_thread.recipients, !recipient.unsubscribed? do
+      participants =
+        Enum.map_join(email_thread.recipients, "\n- ", fn participant ->
+          [participant.name, if(participant == recipient, do: " (you)", else: "")]
+        end)
+
       email
-      |> subject(email_thread.subject)
-      |> put_provider_option(:message_stream, email_thread.message_stream)
-      |> put_provider_option(:tag, email_thread.subject)
+      |> put_message_id(recipient)
+      |> put_recipient(email_thread, recipient, user)
+      |> text_body("""
+      Hello #{recipient.name},
 
-    emails =
-      for recipient <- email_thread.recipients, !recipient.unsubscribed? do
-        recipient_reply_to = "#{mailbox_name}+#{email_thread.id}_#{recipient.id}@#{domain}"
+      You've been added to an invisible thread - a group email conversation where replies are shared with all participants, but email addresses stay hidden.
 
-        email
-        |> to(recipient)
-        |> reply_to(recipient_reply_to)
-        |> put_in_reply_headers(recipient.first_message_id)
-        |> put_unsubscribe_headers(user, email_thread, recipient, recipient_reply_to)
-      end
+      Participants:
 
-    Mailer.deliver_many(emails, api_key: user.server_token)
+      - #{participants}
+
+      Simply reply to this email as you normally would.  Addresses stay private, but anything you include in your message (like a signature) will be visible to others.
+
+      Tip: reply from the same address that received this email for best results.
+      """)
+    end
+    |> Mailer.deliver_many(api_key: user.server_token)
   end
 
-  defp put_in_reply_headers(email, in_reply_to) when is_binary(in_reply_to) do
+  defp new_email(email_thread, from_name \\ "Invisible Threads") do
+    new()
+    |> from({from_name, email_thread.from})
+    |> subject(email_thread.subject)
+    |> put_provider_option(:message_stream, email_thread.message_stream)
+    |> put_provider_option(:tag, email_thread.subject)
+  end
+
+  defp put_recipient(email, email_thread, recipient, user) do
+    [mailbox_name, domain] = String.split(user.inbound_address, "@", parts: 2)
+    recipient_reply_to = "#{mailbox_name}+#{email_thread.id}_#{recipient.id}@#{domain}"
+
     email
-    |> header("In-Reply-To", in_reply_to)
-    |> header("References", in_reply_to)
+    |> to(recipient)
+    |> reply_to(recipient_reply_to)
+    |> put_unsubscribe_headers(user, email_thread, recipient, recipient_reply_to)
   end
 
-  defp put_in_reply_headers(email, nil), do: email
+  defp put_message_id(email, recipient) do
+    message_id = first_message_id(recipient)
+    header(email, "Message-ID", message_id)
+  end
+
+  defp first_message_id(recipient) do
+    host = InvisibleThreadsWeb.Endpoint.host()
+    "<#{recipient.id}@#{host}>"
+  end
 
   defp put_unsubscribe_headers(email, user, email_thread, recipient, recipient_reply_to) do
     unsubscribe_url = url(~p"/api/postmark/unsubscribe/#{user}/#{email_thread}/#{recipient}")
@@ -51,61 +81,75 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     )
   end
 
-  def deliver_introduction(email_thread, user) do
-    participants = Enum.map_join(email_thread.recipients, "\n- ", & &1.name)
+  @doc """
+  Deliver a message notifying participants when someone has unsubscribed.
 
-    new()
-    |> from({"Invisible Threads", email_thread.from})
-    |> text_body("""
-    Hello,
-
-    You've been added to an invisible thread - a group email conversation where replies are shared with all participants, but email addresses stay hidden.
-
-    Participants:
-    - #{participants}
-
-    Simply reply to this email as you normally would.  Addresses stay private, but anything you include in your message (like a signature) will be visible to others.
-
-    Tip: reply from the same address that received this email for best results.
-    """)
-    |> deliver(email_thread, user)
-  end
-
+  """
   def deliver_unsubscribe(email_thread, user, unsubscribed_recipient) do
-    new()
-    |> from({unsubscribed_recipient.name, email_thread.from})
-    |> text_body("""
-    #{unsubscribed_recipient.name} has unsubscribed from this invisible thread.
-    """)
-    |> deliver(email_thread, user)
+    email = new_email(email_thread, unsubscribed_recipient.name)
+
+    for recipient <- email_thread.recipients, !recipient.unsubscribed? do
+      email
+      |> put_in_reply_headers(recipient)
+      |> put_recipient(email_thread, recipient, user)
+      |> text_body("""
+      #{unsubscribed_recipient.name} has unsubscribed from this invisible thread.
+      """)
+    end
+    |> Mailer.deliver_many(api_key: user.server_token)
   end
 
+  defp put_in_reply_headers(email, recipient) do
+    first_message_id = first_message_id(recipient)
+
+    email
+    |> header("In-Reply-To", first_message_id)
+    |> header("References", first_message_id)
+  end
+
+  @doc """
+  Deliver a message notifying participants when the thread is closed.
+
+  """
   def deliver_closing(email_thread, user) do
-    new()
-    |> from({"Invisible Threads", email_thread.from})
-    |> text_body("""
-    This invisible thread has been closed.  No further messages will be delivered or shared.
-    """)
-    |> deliver(email_thread, user)
+    email = new_email(email_thread)
+
+    for recipient <- email_thread.recipients, !recipient.unsubscribed? do
+      email
+      |> put_in_reply_headers(recipient)
+      |> put_recipient(email_thread, recipient, user)
+      |> text_body("""
+      This invisible thread has been closed.  No further messages will be delivered or shared.
+      """)
+    end
+    |> Mailer.deliver_many(api_key: user.server_token)
   end
 
+  @doc """
+  Forward a message from one participant to the rest.
+
+  """
   def forward(email_thread, from_recipient, user, params) do
-    params = sanitize(params, email_thread)
+    params = redact(params, email_thread)
 
-    email_thread =
-      Map.update!(email_thread, :recipients, fn recipients ->
-        Enum.reject(recipients, &(&1.id == from_recipient.id))
-      end)
+    email =
+      email_thread
+      |> new_email(from_recipient.name)
+      |> text_body(params["TextBody"])
+      |> html_body(params["HtmlBody"])
+      |> put_attachments(params["Attachments"])
 
-    new()
-    |> from({from_recipient.name, email_thread.from})
-    |> text_body(params["TextBody"])
-    |> html_body(params["HtmlBody"])
-    |> put_attachments(params["Attachments"])
-    |> deliver(email_thread, user)
+    for recipient <- email_thread.recipients,
+        !recipient.unsubscribed?,
+        recipient.id != from_recipient.id do
+      email
+      |> put_in_reply_headers(recipient)
+      |> put_recipient(email_thread, recipient, user)
+    end
+    |> Mailer.deliver_many(api_key: user.server_token)
   end
 
-  defp sanitize(params, email_thread) do
+  defp redact(params, email_thread) do
     regex =
       email_thread.recipients
       |> Enum.map_join("|", &Regex.escape(&1.address))

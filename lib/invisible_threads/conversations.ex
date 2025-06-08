@@ -78,39 +78,15 @@ defmodule InvisibleThreads.Conversations do
   """
   def create_email_thread(%Scope{} = scope, attrs) do
     with {:ok, email_thread} <- EmailThread.new(scope, attrs),
-         {:ok, metadatas} <-
+         {:ok, _metadatas} <-
            ThreadNotifier.deliver_introduction(email_thread, scope.user) do
-      updated_email_thread = apply_metadatas(email_thread, metadatas)
-
       Accounts.update_user!(scope.user.id, fn user ->
-        Map.update!(user, :email_threads, &[updated_email_thread | &1])
+        Map.update!(user, :email_threads, &[email_thread | &1])
       end)
 
-      broadcast(scope, {:created, updated_email_thread})
+      broadcast(scope, {:created, email_thread})
 
-      {:ok, updated_email_thread}
-    end
-  end
-
-  defp apply_metadatas(email_thread, metadatas) do
-    metadata_by_address =
-      for %{to: to} = metadata <- metadatas, reduce: %{} do
-        acc ->
-          case Regex.run(~r/<([^>]+)>/, to) do
-            [_full_match, address] -> Map.put(acc, String.downcase(address), metadata)
-            _ -> acc
-          end
-      end
-
-    Map.update!(email_thread, :recipients, fn recipients ->
-      Enum.map(recipients, &apply_metadata(&1, metadata_by_address))
-    end)
-  end
-
-  defp apply_metadata(recipient, metadata_by_address) do
-    case metadata_by_address[String.downcase(recipient.address)] do
-      %{error_code: 0, id: message_id} -> struct!(recipient, first_message_id: message_id)
-      _error_or_missing -> struct!(recipient, unsubscribed?: true)
+      {:ok, email_thread}
     end
   end
 

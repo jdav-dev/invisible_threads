@@ -43,7 +43,7 @@ config :invisible_threads, InvisibleThreadsWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :invisible_threads, InvisibleThreads.Mailer, adapter: InvisibleThreads.LocalSwooshAdapter
+config :invisible_threads, InvisibleThreads.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,

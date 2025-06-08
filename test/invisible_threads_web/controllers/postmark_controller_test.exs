@@ -52,14 +52,17 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
 
       email =
         receive do
-          {:emails, [email]} -> email
+          {:emails, [email]} ->
+            email
+
+          {:emails, emails} ->
+            flunk("Expected 1 bulk email, received: #{inspect(emails, pretty: true)}")
         after
           100 -> flunk("No bulk emails were sent")
         end
 
-      assert is_binary(email.headers["Message-ID"])
-      assert email.headers["In-Reply-To"] == to_recipient.first_message_id
-      assert email.headers["References"] == to_recipient.first_message_id
+      assert email.headers["In-Reply-To"] =~ to_recipient.id
+      assert email.headers["References"] =~ to_recipient.id
 
       assert email.from == {from_recipient.name, email_thread.from}
       assert email.to == [Recipient.format(to_recipient)]

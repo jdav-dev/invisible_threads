@@ -1,0 +1,16 @@
+## Customize flags given to the VM: https://www.erlang.org/doc/man/erl.html
+## -mode/-name/-sname/-setcookie are configured via env vars, do not set them here
+
+## Increase number of concurrent ports/sockets
+##+Q 65536
+
+## Tweak GC to run more often
+##-env ERL_FULLSWEEP_AFTER 10
+
+## Allow time warps so that the Erlang system time can more closely match the OS system time.
++C multi_time_warp
+
+## Set all schedulers busy wait to none
++sbwt none
++sbwtdcpu none
++sbwtdio none

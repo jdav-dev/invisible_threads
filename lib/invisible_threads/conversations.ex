@@ -93,7 +93,7 @@ defmodule InvisibleThreads.Conversations do
   end
 
   defp apply_metadatas(email_thread, metadatas) do
-    metadata_by_id =
+    metadata_by_address =
       for %{to: to} = metadata <- metadatas, reduce: %{} do
         acc ->
           case Regex.run(~r/<([^>]+)>/, to) do
@@ -103,13 +103,15 @@ defmodule InvisibleThreads.Conversations do
       end
 
     Map.update!(email_thread, :recipients, fn recipients ->
-      Enum.map(recipients, fn recipient ->
-        case metadata_by_id[String.downcase(recipient.address)] do
-          %{error_code: 0, id: message_id} -> struct!(recipient, first_message_id: message_id)
-          _error_or_missing -> struct!(recipient, unsubscribed?: true)
-        end
-      end)
+      Enum.map(recipients, &apply_metadata(&1, metadata_by_address))
     end)
+  end
+
+  defp apply_metadata(recipient, metadata_by_address) do
+    case metadata_by_address[String.downcase(recipient.address)] do
+      %{error_code: 0, id: message_id} -> struct!(recipient, first_message_id: message_id)
+      _error_or_missing -> struct!(recipient, unsubscribed?: true)
+    end
   end
 
   @doc """

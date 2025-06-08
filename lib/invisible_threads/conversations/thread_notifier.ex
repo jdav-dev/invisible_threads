@@ -59,13 +59,14 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
     |> text_body("""
     Hello,
 
-    You've been added to an invisible thread — a shared conversation where all replies will be echoed to the group, but individual email addresses remain private.
+    You've been added to an invisible thread - a group email conversation where replies are shared with all participants, but email addresses stay hidden.
 
-    Participants in this thread:
-
+    Participants:
     - #{participants}
 
-    Feel free to reply to this message to start the conversation.  All responses will be visible to everyone on the thread.
+    Simply reply to this email as you normally would.  Addresses stay private, but anything you include in your message (like a signature) will be visible to others.
+
+    Tip: reply from the same address that received this email for best results.
     """)
     |> deliver(email_thread, user)
   end

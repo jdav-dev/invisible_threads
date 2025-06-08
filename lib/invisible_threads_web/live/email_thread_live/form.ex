@@ -93,11 +93,7 @@ defmodule InvisibleThreadsWeb.EmailThreadLive.Form do
           >
             <.icon name="hero-user-plus" /> Add Participant
           </button>
-          <.button
-            phx-disable-with="Saving..."
-            variant="primary"
-            data-confirm={"Are you sure you want to create a thread with #{@num_participants} participants?"}
-          >
+          <.button phx-disable-with="Saving..." variant="primary">
             Create Thread
           </.button>
         </footer>

@@ -41,9 +41,13 @@ defmodule InvisibleThreads.TestSwooshAdapter do
 
     responses =
       for {email, response} <- Enum.zip(emails, responses) do
-        response
-        |> Map.put(:id, email.headers["Message-ID"])
-        |> Map.put(:to, email.to |> List.first() |> elem(1))
+        Map.merge(response, %{
+          id: email.headers["Message-ID"],
+          error_code: 0,
+          message: "OK",
+          to: Enum.map_join(email.to, ", ", fn {name, address} -> ~s/"#{name}" <#{address}>/ end),
+          submitted_at: sent_at
+        })
       end
 
     {:ok, responses}

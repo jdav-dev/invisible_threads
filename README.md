@@ -11,7 +11,7 @@ like any other email. Replies are forwarded to all members using the thread's or
 address. Real email addresses stay hidden.
 
 You can use temporary threads for one-off events. For example, school fundraisers, sports seasons,
-or volunteer events. Or, you can keep a thread going indefinitely. Members can opt out of
+or volunteer events. You can also keep threads going indefinitely. Members can opt out of
 individual threads with one click. Organizers can close a thread at any time. Closing a thread
 stops all future messages.
 
@@ -68,8 +68,8 @@ Follow these steps to use the demo. You will need a Postmark account.
 
     ![Closed thread with an unsubscribed participant](/priv/static/images/screenshots/closed_thread.png)
 
-When you're done with the demo, feel free to delete your data. Or, keep using Invisible Threads
-if you find it useful!
+When you're done with the demo, feel free to delete your data, or keep using Invisible Threads if
+you find it useful!
 
 ## Code Repository
 

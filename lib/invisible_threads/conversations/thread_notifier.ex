@@ -36,7 +36,7 @@ defmodule InvisibleThreads.Conversations.ThreadNotifier do
 
       Simply reply to this email as you normally would.  Addresses stay private, but anything you include in your message (like a signature) will be visible to others.
 
-      Tip: reply from the same address that received this email for best results.
+      For best results, reply from the same address that received this email.  Reply STOP to unsubscribe.
       """)
     end
     |> Mailer.deliver_many(api_key: user.server_token)

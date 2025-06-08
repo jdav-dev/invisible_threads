@@ -135,7 +135,7 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
 
       params = %{
         "Subject" => "unsubscribe",
-        "MailboxHash" => email_thread.id,
+        "MailboxHash" => "#{email_thread.id}_#{one.id}",
         "FromFull" => %{
           "Email" => one.address
         }
@@ -152,7 +152,58 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
       assert response(conn, 200)
 
       updated_email_thread = Conversations.get_email_thread(scope, email_thread.id)
-      refute one in updated_email_thread.recipients
+      updated_one = Enum.find(updated_email_thread.recipients, &(&1.id == one.id))
+      assert updated_one.unsubscribed?
+
+      assert_emails_sent([
+        %{
+          to: [Recipient.format(two)],
+          subject: email_thread.subject,
+          text_body: "Recipient 1 has unsubscribed from this invisible thread.\n"
+        },
+        %{
+          to: [Recipient.format(three)],
+          subject: email_thread.subject,
+          text_body: "Recipient 1 has unsubscribed from this invisible thread.\n"
+        }
+      ])
+    end
+
+    test "unscribes recipients who reply with an opt-out keyword", %{conn: conn, scope: scope} do
+      email_thread =
+        email_thread_fixture(scope,
+          recipients: [
+            %{name: "Recipient 1", address: "one@example.com"},
+            %{name: "Recipient 2", address: "two@example.com"},
+            %{name: "Recipient 3", address: "three@example.com"}
+          ]
+        )
+
+      assert_emails_sent()
+
+      [one, two, three] = email_thread.recipients
+
+      params = %{
+        "MailboxHash" => "#{email_thread.id}_#{one.id}",
+        "FromFull" => %{
+          "Email" => one.address
+        },
+        "StrippedTextReply" => "STOP\nSent from my iPhone"
+      }
+
+      conn =
+        conn
+        |> put_req_header(
+          "authorization",
+          Plug.BasicAuth.encode_basic_auth("postmark", scope.user.inbound_webhook_password)
+        )
+        |> post(~p"/api/postmark/inbound_webhook/#{scope.user}", params)
+
+      assert response(conn, 200)
+
+      updated_email_thread = Conversations.get_email_thread(scope, email_thread.id)
+      updated_one = Enum.find(updated_email_thread.recipients, &(&1.id == one.id))
+      assert updated_one.unsubscribed?
 
       assert_emails_sent([
         %{
@@ -186,7 +237,7 @@ defmodule InvisibleThreadsWeb.PostmarkControllerTest do
 
       params = %{
         "Subject" => "unsubscribe",
-        "MailboxHash" => email_thread.id,
+        "MailboxHash" => "#{email_thread.id}_#{one.id}",
         "FromFull" => %{
           "Email" => one.address
         }

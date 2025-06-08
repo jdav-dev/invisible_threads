@@ -10,20 +10,8 @@ defmodule InvisibleThreadsWeb.PostmarkController do
 
   plug :auth
 
-  def inbound_webhook(conn, %{
-        "Subject" => "unsubscribe",
-        "user_id" => user_id,
-        "MailboxHash" => email_thread_id,
-        "FromFull" => %{
-          "Email" => recipient_address
-        }
-      }) do
-    Conversations.unsubscribe_by_address!(user_id, email_thread_id, recipient_address)
-    send_resp(conn, 200, "")
-  end
-
   def inbound_webhook(conn, params) do
-    case Conversations.forward_inbound_email(conn.assigns.current_scope, params) do
+    case Conversations.handle_inbound_email(conn.assigns.current_scope, params) do
       {:ok, _metadatas} ->
         send_resp(conn, 200, "")
 

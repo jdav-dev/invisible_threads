@@ -177,16 +177,38 @@ defmodule InvisibleThreads.Conversations do
   end
 
   @doc """
-  Forward an inbound message to an email thread.
+  Handles an inbound message to an email thread.
+
+  Depending on the message content the email is either forwarded or the recipient is unsubscribed.
   """
-  def forward_inbound_email(%Scope{} = scope, %{"MailboxHash" => mailbox_hash} = params) do
+  def handle_inbound_email(%Scope{} = scope, %{"MailboxHash" => mailbox_hash} = params) do
     with [email_thread_id, recipient_id] <- String.split(mailbox_hash, "_", parts: 2),
          %EmailThread{} = email_thread <- get_email_thread(scope, email_thread_id),
          %EmailRecipient{} = from_recipient <-
            Enum.find(email_thread.recipients, &(&1.id == recipient_id)) do
-      ThreadNotifier.forward(email_thread, from_recipient, scope.user, params)
+      if unsubscribe?(params) do
+        unsubscribe!(scope.user.id, email_thread.id, from_recipient.id)
+        {:ok, []}
+      else
+        ThreadNotifier.forward(email_thread, from_recipient, scope.user, params)
+      end
     else
       _other -> {:error, :unknown_thread}
+    end
+  end
+
+  defp unsubscribe?(params) do
+    case params do
+      %{"Subject" => "unsubscribe"} ->
+        true
+
+      %{"StrippedTextReply" => stripped_text_reply} when is_binary(stripped_text_reply) ->
+        # Opt out keywords borrowed from Twilio
+        opt_out_regex = ~r/\ASTOP|STOPALL|UNSUBSCRIBE|CANCEL|END|REVOKE|OPTOUT|QUIT$/im
+        Regex.match?(opt_out_regex, stripped_text_reply)
+
+      _params ->
+        false
     end
   end
 

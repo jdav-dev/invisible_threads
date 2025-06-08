@@ -5,6 +5,7 @@ defmodule InvisibleThreads.Accounts.User do
 
   use Ecto.Schema
 
+  @derive Jason.Encoder
   embedded_schema do
     field :inbound_address, :string
     field :inbound_webhook_password, :string, redact: true

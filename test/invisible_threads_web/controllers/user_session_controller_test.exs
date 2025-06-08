@@ -3,6 +3,8 @@ defmodule InvisibleThreadsWeb.UserSessionControllerTest do
 
   import InvisibleThreads.AccountsFixtures
 
+  alias InvisibleThreads.Accounts
+
   setup do
     %{user: user_fixture()}
   end
@@ -83,6 +85,30 @@ defmodule InvisibleThreadsWeb.UserSessionControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Error calling Postmark API"
       assert redirected_to(conn) == ~p"/users/log-in"
     end
+  end
+
+  test "GET /users/download-my-data returns a user's data as JSON", %{conn: conn, user: user} do
+    conn = conn |> log_in_user(user) |> get(~p"/users/download-my-data")
+
+    assert json_response(conn, 200) == %{
+             "id" => user.id,
+             "inbound_address" => user.inbound_address,
+             "inbound_webhook_password" => user.inbound_webhook_password,
+             "name" => user.name,
+             "server_token" => user.server_token,
+             "email_threads" => []
+           }
+  end
+
+  test "DELETE /users/delete-my-data deletes the users's data and logs them out", %{
+    conn: conn,
+    user: user
+  } do
+    conn = conn |> log_in_user(user) |> delete(~p"/users/delete-my-data")
+    assert redirected_to(conn) == ~p"/"
+    refute get_session(conn, :user_token)
+    assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User deleted successfully"
+    refute Accounts.get_user(user.id)
   end
 
   describe "DELETE /users/log-out" do

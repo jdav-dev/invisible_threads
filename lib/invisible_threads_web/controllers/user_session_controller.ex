@@ -28,7 +28,27 @@ defmodule InvisibleThreadsWeb.UserSessionController do
     end
   end
 
-  def delete(conn, _params) do
+  def delete_data(conn, _params) do
+    user = conn.assigns.current_scope.user
+    Accounts.delete_user!(user)
+
+    conn
+    |> put_flash(:info, "User deleted successfully.")
+    |> UserAuth.log_out_user()
+  end
+
+  def download_data(conn, _params) do
+    user = conn.assigns.current_scope.user
+
+    send_download(conn, {:binary, Jason.encode!(user, pretty: true)},
+      filename: "#{user.id}.json",
+      content_type: "application/json",
+      disposition: :inline,
+      charset: "utf-8"
+    )
+  end
+
+  def log_out(conn, _params) do
     conn
     |> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()

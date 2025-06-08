@@ -55,6 +55,9 @@ defmodule InvisibleThreadsWeb.CoreComponents do
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
+      phx-mounted={
+        JS.dispatch("invisiblethreads:auto-clear", detail: %{timeout: 4000, attr: "phx-click"})
+      }
       role="alert"
       class="toast toast-top toast-end z-50"
       {@rest}
@@ -285,7 +288,11 @@ defmodule InvisibleThreadsWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4", @class]}>
+    <header class={[
+      @actions != [] && "flex flex-col items-center justify-between gap-6",
+      "pb-4 text-center",
+      @class
+    ]}>
       <div>
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
@@ -294,7 +301,7 @@ defmodule InvisibleThreadsWeb.CoreComponents do
           {render_slot(@subtitle)}
         </p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div class="w-full">{render_slot(@actions)}</div>
     </header>
     """
   end
@@ -413,6 +420,21 @@ defmodule InvisibleThreadsWeb.CoreComponents do
   def icon(%{name: "hero-" <> _} = assigns) do
     ~H"""
     <span class={[@name, @class]} />
+    """
+  end
+
+  @doc """
+  Renders email thread status.
+  """
+  attr :email_thread, InvisibleThreads.Conversations.EmailThread, required: true
+
+  def thread_status(assigns) do
+    ~H"""
+    <%= if @email_thread.closed? do %>
+      <small class="badge badge-error badge-sm">Closed</small>
+    <% else %>
+      <small class="badge badge-info badge-sm">Active</small>
+    <% end %>
     """
   end
 

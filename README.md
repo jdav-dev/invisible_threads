@@ -84,7 +84,7 @@ the demo light. Authentication uses Postmark API tokens, mapping each applicatio
 a Postmark server. The whole thing is deployed to [Fly.io](https://fly.io/). A minimal setup let
 me focus on Postmark's offerings.
 
-Threaded email conversations depend on specific headers. I set the "Message-ID" header on the
+Threaded email conversations depend on specific headers. I set the `Message-ID` header on the
 introduction email to a known value. On subsequent emails, I set the `In-Reply-To` and
 `References` headers to the same message ID.
 

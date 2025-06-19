@@ -92,7 +92,7 @@ defmodule InvisibleThreadsWeb.Router do
         "default-src; " <>
           "script-src 'nonce-#{csp_nonce}' 'self'; " <>
           "style-src-elem 'nonce-#{csp_nonce}' 'self'; " <>
-          "style-src 'self' " <>
+          "style-src 'self'; " <>
           "img-src data: 'self'; " <>
           "font-src data: ; " <>
           "connect-src 'self'; " <>

@@ -71,9 +71,8 @@ defmodule InvisibleThreadsWeb.Router do
       live_dashboard "/dashboard",
         allow_destructive_actions: true,
         csp_nonce_assign_key: %{
-          img: :img_csp_nonce,
-          style: :style_csp_nonce,
-          script: :script_csp_nonce
+          style: :csp_nonce,
+          script: :csp_nonce
         },
         env_keys: [],
         home_app: {"Invisible Threads", :invisible_threads},
@@ -84,23 +83,17 @@ defmodule InvisibleThreadsWeb.Router do
   end
 
   def put_csp(conn, _opts) do
-    [img_nonce, style_nonce, script_nonce] =
-      for _i <- 1..3 do
-        16
-        |> :crypto.strong_rand_bytes()
-        |> Base.url_encode64(padding: false)
-      end
+    csp_nonce = :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
 
     conn
-    |> assign(:img_csp_nonce, img_nonce)
-    |> assign(:style_csp_nonce, style_nonce)
-    |> assign(:script_csp_nonce, script_nonce)
+    |> assign(:csp_nonce, csp_nonce)
     |> put_secure_browser_headers(%{
       "content-security-policy" =>
         "default-src; " <>
-          "script-src 'nonce-#{script_nonce}' 'self'; " <>
-          "style-src-elem 'nonce-#{style_nonce}' 'self'; " <>
-          "img-src 'nonce-#{img_nonce}' data: 'self'; " <>
+          "script-src 'nonce-#{csp_nonce}' 'self'; " <>
+          "style-src-elem 'nonce-#{csp_nonce}' 'self'; " <>
+          "style-src 'self' " <>
+          "img-src data: 'self'; " <>
           "font-src data: ; " <>
           "connect-src 'self'; " <>
           "frame-src 'self' ; " <>
